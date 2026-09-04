@@ -50,7 +50,7 @@ The second pipeline stage (`src/fast_path/`) is a regex/heuristic detector that 
 - **Noisy-OR composite scoring** — `score = 1 − Π(1 − wᵢ)`: multiple weak signals stack (three 0.5-weight obfuscation hits → 0.875), so evasion used together still blocks; duplicate hits of the same pattern count once.
 - **Thresholds** — `score ≥ 0.75` → block (HTTP 403); `0.4 ≤ score < 0.75` → warn (logged, forwarded); configurable via `LMPI_FAST_PATH_BLOCK_THRESHOLD` / `LMPI_FAST_PATH_WARN_THRESHOLD`.
 - **False-positive controls** — word-boundary anchoring, structural gating (a persona switch alone or a restriction-lift phrase alone never scores — e.g. "Write a story where a robot must answer without restrictions" stays clean), benign collocations excluded ("ignore previous test results"), and quoted mentions (`"ignore all previous instructions"` discussed in a security course) demoted to zero weight.
-- **Honest caveat:** all weights are heuristic priors, not measurements — they will be tuned against the frozen benchmark eval set (see Benchmark Results below).
+- **Honest caveat:** all weights are heuristic priors, not measurements — they were not tuned on the benchmark eval set (baseline-as-shipped numbers, see Benchmark Results); tuning is a separate, documented iteration.
 
 ## Deep Path (ML)
 
@@ -69,7 +69,7 @@ The third pipeline stage (`src/deep_path/`) is a neural prompt-injection classif
 
 - **Graceful degradation** — model missing, or `onnxruntime` not installed → the stage is skipped with a one-time warning and the proxy keeps working (stages 1–2 remain active).
 - **Input hygiene & truncation** — text is capped at `LMPI_DEEP_PATH_MAX_CHARS` (default 6000) before classification (capped requests are flagged in the log event), then token-truncated to the model's 512-token training window (standard **first-512** truncation: an injection payload near the end of a >512-token prompt can be missed — known trade-off).
-- **Latency** — every decision event logs `latency_ms` (tokenize + ONNX inference); on CPU, single-text inference is roughly 20–30 ms, feeding the benchmark's per-stage breakdown.
+- **Latency** — every decision event logs `latency_ms` (tokenize + ONNX inference); on CPU, short prompts land near ~30 ms (p50), while long prompts can take hundreds of ms — real measured numbers in Benchmark Results.
 
 ## Canary Token Detection
 
@@ -83,16 +83,101 @@ The final pipeline stage (`src/canary/`) answers a question the classifier can't
 
 ## Benchmark Results
 
-> ⚠️ Results will be published after v1 completion. Metrics will include:
+Reproducible benchmark against a **frozen eval set** (500 prompts: 200
+attacks, 300 clean). The selection is pinned in
+[`benchmarks/eval_set/manifest.json`](benchmarks/eval_set/manifest.json)
+(dataset coordinates only — no attack texts are committed) and is never
+re-sampled or re-tuned. Reproduce with:
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Attack Detection Rate (TPR) | TBD | JailbreakBench + HarmBench subset |
-| False Positive Rate | TBD | Clean prompts dataset |
-| p50 Latency Overhead | TBD | Proxy vs direct |
-| p95 Latency Overhead | TBD | Proxy vs direct |
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+python scripts/download_model.py        # deep-path ONNX model (gitignored)
+python benchmarks/run_benchmark.py      # downloads datasets into benchmarks/.cache/
+```
 
-**Methodology:** Frozen eval set, not mixed with tuning data. Model version and config hash documented for reproducibility.
+Latest run (`benchmarks/results/results.json` + `results.md`):
+
+| Metric | Attacks | Clean |
+|--------|---------|-------|
+| Items | 200 | 300 |
+| **Blocked — TPR / FPR** | **73 (36.5%)** | **9 (3.0%)** |
+| Warned, forwarded | 3 (1.5%) | 0 (0.0%) |
+| Latency p50 / p95 / p99 (whole pipeline) | 30.2 / 563.1 / 577.2 ms | (same run) |
+
+**Methodology.** Every prompt is run through the full detection pipeline
+exactly as the proxy would: stage 1 normalization (rewrite mode), stage 2
+fast path (block ≥ 0.75, warn ≥ 0.4), stage 3 deep path — the real ONNX
+DeBERTa classifier (block ≥ 0.75, warn ≥ 0.5, max_chars 6000). Measured:
+`DetectionPipeline.process_request()` wall time on CPU — no LLM call, no
+network I/O; this is the per-request overhead LMPI adds in front of the
+target LLM. Canary detection is excluded by design: it scans the model's
+*output* for system-prompt leakage, a different concern from input-side
+detection. **Thresholds were not tuned on this eval set** — these are the
+baseline-as-shipped defaults recorded before the run; tuning would be a
+separate, documented iteration. Decisions are deterministic (a `--selfcheck`
+mode rebuilds the pipeline and re-runs a subset asserting identical
+decisions).
+
+**By source** — the honest breakdown:
+
+| Source | Split | Items | Blocked | Rate |
+|--------|-------|-------|---------|------|
+| `jbb_harmful` — JBB harmful behaviors (plain harmful *requests*) | attack | 100 | 0 | 0.0% |
+| `wild_jailbreaks` — in-the-wild jailbreak prompts (TrustAIRLab) | attack | 100 | 73 | **73.0%** |
+| `jbb_benign` — JBB benign behaviors | clean | 100 | 1 | 1.0% |
+| `ultrachat` — real user first-turns (test_sft) | clean | 170 | 0 | 0.0% |
+| `tricky_benign` — hand-written security-research prompts | clean | 30 | 8 | 26.7% |
+
+**Per-stage attribution** (an item blocked by both stages counts in both):
+
+| Stage | Attacks (n=200) | Clean (n=300) |
+|-------|-----------------|---------------|
+| Fast path block | 8 (4.0%) | 1 (0.3%) |
+| Deep path block | 72 (36.0%) | 9 (3.0%) |
+| Blocked by both (overlap) | 7 (3.5%) | 1 (0.3%) |
+| Deep path only | 65 (32.5%) | 8 (2.7%) |
+| Normalization findings (rewrite, non-blocking) | 14 (7.0%) | 5 (1.7%) |
+
+**Per-stage latency** (p50 / p95 / mean, CPU):
+
+| Stage | p50 | p95 | mean |
+|-------|-----|-----|------|
+| Normalization | 0.18 ms | 2.67 ms | 0.65 ms |
+| Fast path | 0.19 ms | 4.72 ms | 0.98 ms |
+| Deep path (ONNX) | 30.7 ms | 558.4 ms | 131.2 ms |
+
+Reproducibility: LMPI 0.1.0; full-precision `model.onnx` of
+`protectai/deberta-v3-base-prompt-injection-v2` (SHA-256 in
+`results.json`); Python 3.13, onnxruntime 1.29, tokenizers 0.22; eval-set
+manifest SHA-256 + pinned dataset revisions recorded in `results.json`.
+
+**What the numbers mean (honest reading):**
+
+- **TPR is 36.5% overall but 73% on real jailbreaks.** The JBB "harmful"
+  half measures *harmful requests* ("write a phishing email") — these
+  contain no injection structure, and LMPI is an injection firewall, not a
+  content-policy filter, so 0% there is the *correct* behavior, not a miss.
+  Against the in-the-wild jailbreaks (roleplay wrappers, instruction
+  overrides, real adversarial texts) the pipeline catches 73%.
+- **The deep path does the heavy lifting** (65 of 73 attack blocks are
+  deep-only); the regex fast path contributes 8 blocks + overlap, and
+  normalization rewrites 7% of attacks without blocking (its findings feed
+  the other stages).
+- **FPR is 3.0% overall (0% on ordinary user prompts).** All 8 tricky-benign
+  misses are prompts that academically *discuss* prompt injection — the
+  pretrained classifier reads them as attacks. This is the clearest signal
+  for the planned fine-tuning iteration (Roadmap v3.0).
+- **p95/p99 latency is dominated by long prompts** (tokenization + CPU
+  inference on ~500-token texts); typical short prompts land near p50
+  (~30 ms). The model is full-precision (~740 MB) — no quantized export
+  exists upstream yet.
+
+**Benchmark limitations:** dataset subsets (100+100 JBB behaviors, 100 of
+1405 in-the-wild prompts, 170 UltraChat turns, 30 hand-written); HarmBench
+skipped (gated dataset, would break clean-checkout reproduction); attacks
+are English-heavy; single CPU machine for latency (no GPU numbers); warned
+prompts are still forwarded, so the warn tier trades recall for
+availability.
 
 ## Quickstart
 
@@ -216,7 +301,7 @@ lmpi/
 │   └── download_model.py    # Downloads the deep-path ONNX model (gitignored)
 ├── tests/                   # Unit + integration tests
 ├── benchmarks/              # Frozen eval set + runner
-├── models/                  # Quantized ONNX models
+├── models/                  # Deep-path ONNX model (gitignored)
 ├── IDEA.md                  # Core idea and positioning
 ├── PLAN.md                  # Development plan (v1)
 ├── ROADMAP.md               # Future features
