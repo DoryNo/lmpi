@@ -102,7 +102,7 @@ Latest run (`benchmarks/results/results.json` + `results.md`):
 | Items | 200 | 300 |
 | **Blocked — TPR / FPR** | **73 (36.5%)** | **9 (3.0%)** |
 | Warned, forwarded | 3 (1.5%) | 0 (0.0%) |
-| Latency p50 / p95 / p99 (whole pipeline) | 30.2 / 563.1 / 577.2 ms | (same run) |
+| Latency p50 / p95 / p99 (whole pipeline) | 29.5 / 557.5 / 574.2 ms | (same run) |
 
 **Methodology.** Every prompt is run through the full detection pipeline
 exactly as the proxy would: stage 1 normalization (rewrite mode), stage 2
@@ -142,9 +142,9 @@ decisions).
 
 | Stage | p50 | p95 | mean |
 |-------|-----|-----|------|
-| Normalization | 0.18 ms | 2.67 ms | 0.65 ms |
-| Fast path | 0.19 ms | 4.72 ms | 0.98 ms |
-| Deep path (ONNX) | 30.7 ms | 558.4 ms | 131.2 ms |
+| Normalization | 0.17 ms | 2.9 ms | 0.64 ms |
+| Fast path | 0.18 ms | 4.4 ms | 0.99 ms |
+| Deep path (ONNX) | 29.9 ms | 550.7 ms | 129.1 ms |
 
 Reproducibility: LMPI 0.1.0; full-precision `model.onnx` of
 `protectai/deberta-v3-base-prompt-injection-v2` (SHA-256 in
