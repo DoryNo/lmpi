@@ -1,22 +1,28 @@
-"""Detection pipeline — normalization is stage 1.
+"""Detection pipeline — normalization (stage 1) + fast path (stage 2).
 
 The proxy awaits :meth:`DetectionPipeline.process_request` on every chat
 completion request before forwarding it upstream. Current stages:
 
-- Stage 1 — ingress normalization (this module + ``src.normalization``):
-  NFKC / zero-width / control-char cleanup, base64 / hex / ROT13
-  decode-and-recheck, pseudo-system delimiter neutralization.
+- Stage 1 — ingress normalization (``src.normalization``): NFKC /
+  zero-width / control-char cleanup, base64 / hex / ROT13 decode-and-recheck,
+  pseudo-system delimiter neutralization. Findings are logged; depending on
+  the configured ``mode`` the stage rewrites the payload (default), blocks
+  with HTTP 403, or passes the original bytes through (log-only).
+- Stage 2 — fast path regex/heuristics (``src.fast_path``): weighted
+  noisy-OR scoring over known jailbreak patterns, run on the **normalized**
+  text, so encoded or obfuscated inputs are seen the way the LLM would see
+  them. score >= block threshold → HTTP 403; >= warn threshold → logged,
+  still forwarded.
 
 Later agents add more stages on top:
 
-- Agent 3 — fast path regex/heuristics (runs on the normalized text)
 - Agent 4 — canary token detection
 - Agent 5 — deep path ML classifier (ONNX)
 - Agent 6 — pipeline orchestration (block / warn / log-only)
 
-Normalization alone never blocks by default (``mode: "rewrite"``): findings
-are logged and the payload is rewritten with the cleaned text. Blocking,
-when explicitly configured (``mode: "block"``), yields HTTP 403.
+Note on stage interaction: stage 1 already neutralizes raw special tokens
+(``<|im_start|>`` → ``⟦fake-im-start⟧``), so fast-path patterns aimed at raw
+tokens mainly fire when the corresponding normalization toggles are disabled.
 """
 
 from __future__ import annotations
@@ -26,7 +32,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from ..config import NormalizationSettings
+from ..config import FastPathSettings, NormalizationSettings
+from ..fast_path import DetectionResult, FastPathDetector
 from ..normalization import normalize
 from ..normalization.types import Finding
 
@@ -53,26 +60,67 @@ class PipelineResult:
     payload: dict[str, Any] | None = None
 
 
+def extract_user_text(payload: dict[str, Any]) -> str:
+    """Concatenate the text of all user messages in a chat completion payload.
+
+    OpenAI content may be a plain string or a list of typed parts
+    (``[{"type": "text", "text": ...}, ...]``); both are handled. System and
+    assistant messages are *not* scanned — they belong to the application,
+    not the (untrusted) end user.
+    """
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        return ""
+    parts: list[str] = []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            for chunk in content:
+                if (
+                    isinstance(chunk, dict)
+                    and chunk.get("type") == "text"
+                    and isinstance(chunk.get("text"), str)
+                ):
+                    parts.append(chunk["text"])
+    return "\n".join(parts)
+
+
 class DetectionPipeline:
-    """Runs stages over a chat completion payload; normalization first."""
+    """Runs stages over a chat completion payload: normalization, then fast path."""
 
     def __init__(
-        self, normalization: NormalizationSettings | None = None
+        self,
+        normalization: NormalizationSettings | None = None,
+        *,
+        fast_path: FastPathSettings | None = None,
     ) -> None:
         self.normalization = normalization or NormalizationSettings()
+        self.fast_path: FastPathDetector | None = None
+        if fast_path is not None and fast_path.enabled:
+            self.fast_path = FastPathDetector(
+                block_threshold=fast_path.block_threshold,
+                warn_threshold=fast_path.warn_threshold,
+            )
 
     async def process_request(self, payload: dict[str, Any]) -> PipelineResult:
-        """Inspect a chat completion payload.
+        """Inspect a chat completion payload and decide pass / block.
 
         Stage 1 normalizes every user-message content, rewrites the payload
-        with the cleaned text, and logs the findings. Depending on the
-        configured normalization mode the stage can also block (403) or
-        pass the original payload through untouched (log-only).
+        with the cleaned text, and logs the findings. Stage 2 runs the fast
+        path over the *normalized* user text. Depending on the configured
+        stage actions the result can block (403), rewrite, or pass through.
         """
         messages = payload.get("messages")
         if not isinstance(messages, list):
             return PipelineResult()
 
+        # ---------------------------------------------------------------
+        # Stage 1 — ingress normalization (per user message, never raises)
+        # ---------------------------------------------------------------
         findings: list[Finding] = []
         new_messages: list[Any] = []
         for message in messages:
@@ -82,10 +130,8 @@ class DetectionPipeline:
 
         if findings:
             self._log_findings(payload, findings)
-        else:
-            return PipelineResult()
 
-        if self.normalization.mode == "block":
+        if findings and self.normalization.mode == "block":
             categories = sorted({finding.category for finding in findings})
             return PipelineResult(
                 action="block",
@@ -94,16 +140,30 @@ class DetectionPipeline:
                 ),
             )
 
-        if self.normalization.mode != "rewrite":
-            # "log" (and any future read-only mode): keep original bytes.
-            return PipelineResult()
+        result = PipelineResult()
+        if findings and self.normalization.mode == "rewrite":
+            new_payload = dict(payload)
+            new_payload["messages"] = new_messages
+            result = PipelineResult(payload=new_payload)
 
-        new_payload = dict(payload)
-        new_payload["messages"] = new_messages
-        return PipelineResult(payload=new_payload)
+        # ---------------------------------------------------------------
+        # Stage 2 — fast path, on the normalized text (what the LLM would
+        # actually reason about after stage 1).
+        # ---------------------------------------------------------------
+        if self.fast_path is not None:
+            text = extract_user_text({"messages": new_messages})
+            if text.strip():
+                detection = self.fast_path.detect(text)
+                if detection.action == "block":
+                    self._log_detection(detection, level="warning")
+                    return PipelineResult(action="block", reason=detection.reason)
+                if detection.action == "warn":
+                    self._log_detection(detection, level="info")
+
+        return result
 
     # ------------------------------------------------------------------
-    # Message-level helpers
+    # Stage 1 helpers (normalization)
     # ------------------------------------------------------------------
 
     def _normalize_message(
@@ -165,3 +225,17 @@ class DetectionPipeline:
             "findings": [finding.to_dict() for finding in findings],
         }
         logger.info("detection event: %s", json.dumps(event, ensure_ascii=False))
+
+    # ------------------------------------------------------------------
+    # Stage 2 helpers (fast path)
+    # ------------------------------------------------------------------
+
+    def _log_detection(self, detection: DetectionResult, level: str) -> None:
+        """Emit the structured fast-path detection event (block or warn)."""
+        message = json.dumps(
+            detection.log_dict(), ensure_ascii=False, sort_keys=True
+        )
+        if level == "warning":
+            logger.warning("detection event: %s", message)
+        else:
+            logger.info("detection event: %s", message)

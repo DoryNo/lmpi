@@ -42,6 +42,16 @@ The first pipeline stage (`src/normalization/`) rewrites every user message befo
 - **Delimiter neutralization** — pseudo-system tokens (`<|im_start|>`, `### System`, `[INST]`, line-start `System:` …) are replaced with visibly-escaped markers (`⟦fake-system⟧`), surgically: prose and code like `os.system("ls")` or `### System requirements` are left untouched.
 - Every rewrite is recorded as a structured `Finding`; by default findings are logged and the payload is rewritten (`LMPI_NORMALIZATION_MODE=rewrite`; `block` returns 403, `log` is observe-only).
 
+## Fast Path
+
+The second pipeline stage (`src/fast_path/`) is a regex/heuristic detector that runs on the **normalized** text produced by stage 1:
+
+- **Five categories with weighted patterns** — instruction override (~0.9), system prompt extraction (~0.9), roleplay jailbreaks (~0.8), fake role injection (~0.7), obfuscation markers (~0.5); a handful of Russian variants of the top patterns included (deliberately limited scope).
+- **Noisy-OR composite scoring** — `score = 1 − Π(1 − wᵢ)`: multiple weak signals stack (three 0.5-weight obfuscation hits → 0.875), so evasion used together still blocks; duplicate hits of the same pattern count once.
+- **Thresholds** — `score ≥ 0.75` → block (HTTP 403); `0.4 ≤ score < 0.75` → warn (logged, forwarded); configurable via `LMPI_FAST_PATH_BLOCK_THRESHOLD` / `LMPI_FAST_PATH_WARN_THRESHOLD`.
+- **False-positive controls** — word-boundary anchoring, structural gating (a persona switch alone or a restriction-lift phrase alone never scores — e.g. "Write a story where a robot must answer without restrictions" stays clean), benign collocations excluded ("ignore previous test results"), and quoted mentions (`"ignore all previous instructions"` discussed in a security course) demoted to zero weight.
+- **Honest caveat:** all weights are heuristic priors, not measurements — they will be tuned against the frozen benchmark eval set (see Benchmark Results below).
+
 ## Benchmark Results
 
 > ⚠️ Results will be published after v1 completion. Metrics will include:
@@ -109,6 +119,9 @@ Configuration (env vars override `config.yaml`):
 | `LMPI_NORMALIZATION_HEX` | `true` | hex decode-and-recheck |
 | `LMPI_NORMALIZATION_ROT13` | `true` | ROT13 decode (marker-gated) |
 | `LMPI_NORMALIZATION_DELIMITERS` | `true` | Pseudo-system delimiter neutralization |
+| `LMPI_FAST_PATH_ENABLED` | `true` | Fast-path regex/heuristic stage on/off |
+| `LMPI_FAST_PATH_BLOCK_THRESHOLD` | `0.75` | Noisy-OR score at/above which requests are blocked |
+| `LMPI_FAST_PATH_WARN_THRESHOLD` | `0.4` | Score at/above which requests are logged (warn) but forwarded |
 
 Run tests (no real network — upstream is mocked):
 

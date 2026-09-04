@@ -28,7 +28,10 @@ logger = logging.getLogger("lmpi")
 
 def build_pipeline(settings: Settings) -> DetectionPipeline:
     """Build the detection pipeline with the configured stages."""
-    return DetectionPipeline(normalization=settings.normalization)
+    return DetectionPipeline(
+        normalization=settings.normalization,
+        fast_path=settings.fast_path,
+    )
 
 
 def build_upstream_client(

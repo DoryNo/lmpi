@@ -20,6 +20,11 @@ from typing import Any, Mapping
 
 import yaml
 
+from .fast_path.detector import (
+    DEFAULT_BLOCK_THRESHOLD as DEFAULT_FAST_PATH_BLOCK_THRESHOLD,
+    DEFAULT_WARN_THRESHOLD as DEFAULT_FAST_PATH_WARN_THRESHOLD,
+)
+
 logger = logging.getLogger("lmpi.config")
 
 DEFAULT_UPSTREAM_URL = "https://api.openai.com"
@@ -56,6 +61,22 @@ class NormalizationSettings:
 
 
 @dataclass(frozen=True)
+class FastPathSettings:
+    """Fast-path (stage 2) settings.
+
+    ``enabled`` toggles the regex/heuristic stage; ``block_threshold`` is
+    the composite noisy-OR score at/above which the request is rejected with
+    HTTP 403; ``warn_threshold`` is the score at/above which the request is
+    logged (warn) but still forwarded. Both thresholds are heuristics
+    pending tuning against the benchmark eval set (Agent 7).
+    """
+
+    enabled: bool = True
+    block_threshold: float = DEFAULT_FAST_PATH_BLOCK_THRESHOLD
+    warn_threshold: float = DEFAULT_FAST_PATH_WARN_THRESHOLD
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings for the LMPI proxy."""
 
@@ -67,6 +88,7 @@ class Settings:
     normalization: NormalizationSettings = field(
         default_factory=NormalizationSettings
     )
+    fast_path: FastPathSettings = field(default_factory=FastPathSettings)
 
 
 def _parse_port(value: Any) -> int:
@@ -108,6 +130,16 @@ def _parse_bool(value: Any, env_key: str) -> bool:
     if lowered in _BOOL_FALSE:
         return False
     raise ValueError(f"Invalid boolean for {env_key}: {value!r}")
+
+
+def _parse_threshold(value: Any, *, name: str) -> float:
+    try:
+        threshold = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid {name} value: {value!r}") from exc
+    if not 0.0 <= threshold <= 1.0:
+        raise ValueError(f"{name} must be within [0, 1], got {threshold}")
+    return threshold
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -185,6 +217,42 @@ def load_settings(
         ),
     )
 
+    fast_path_section = file_values.get("fast_path")
+    if fast_path_section is None:
+        fast_path_section = {}
+    if not isinstance(fast_path_section, dict):
+        raise ValueError(
+            "fast_path config section must be a mapping, got "
+            f"{type(fast_path_section).__name__}"
+        )
+
+    def fp_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}FAST_PATH_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if fast_path_section.get(key) is not None:
+            return fast_path_section[key]
+        return default
+
+    fast_path = FastPathSettings(
+        enabled=_parse_bool(
+            fp_pick("enabled", True), f"{ENV_PREFIX}FAST_PATH_ENABLED"
+        ),
+        block_threshold=_parse_threshold(
+            fp_pick("block_threshold", DEFAULT_FAST_PATH_BLOCK_THRESHOLD),
+            name="fast_path_block_threshold",
+        ),
+        warn_threshold=_parse_threshold(
+            fp_pick("warn_threshold", DEFAULT_FAST_PATH_WARN_THRESHOLD),
+            name="fast_path_warn_threshold",
+        ),
+    )
+    if fast_path.warn_threshold > fast_path.block_threshold:
+        raise ValueError(
+            f"fast_path_warn_threshold ({fast_path.warn_threshold}) must not "
+            f"exceed fast_path_block_threshold ({fast_path.block_threshold})"
+        )
+
     if not upstream_url.lower().startswith(("http://", "https://")):
         raise ValueError(
             f"upstream_url must start with http:// or https://, got {upstream_url!r}"
@@ -197,14 +265,19 @@ def load_settings(
         request_timeout=request_timeout,
         config_path=resolved_path,
         normalization=normalization,
+        fast_path=fast_path,
     )
     logger.debug(
         "Loaded settings: upstream=%s host=%s port=%s timeout=%s "
-        "normalization.mode=%s",
+        "normalization.mode=%s fast_path.enabled=%s "
+        "fast_path.block=%s fast_path.warn=%s",
         settings.upstream_url,
         settings.host,
         settings.port,
         settings.request_timeout,
         settings.normalization.mode,
+        settings.fast_path.enabled,
+        settings.fast_path.block_threshold,
+        settings.fast_path.warn_threshold,
     )
     return settings
