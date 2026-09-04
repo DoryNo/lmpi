@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 from .backend import ModelBackend
 
-DEFAULT_BLOCK_THRESHOLD = 0.75
+DEFAULT_BLOCK_THRESHOLD = 0.65
 DEFAULT_WARN_THRESHOLD = 0.5
 DEFAULT_MAX_CHARS = 6000
 

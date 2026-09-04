@@ -16,10 +16,12 @@ request_timeout: 300.0
 #
 # Deep path (stage 3): ONNX DeBERTa prompt-injection classifier. Disabled
 # until the model is downloaded: python scripts/download_model.py
+# Thresholds are the v1.1 tuned defaults (tuning log: benchmarks/tuning_log.md):
+# block lowered 0.75 -> 0.65 after a threshold sweep on the 60% tuning split.
 # deep_path:
 #   enabled: false                              # then set true
 #   model_path: models/deberta-v3-base-prompt-injection-v2
-#   block_threshold: 0.75   # injection prob >= this → HTTP 403
+#   block_threshold: 0.65   # injection prob >= this → HTTP 403
 #   warn_threshold: 0.5     # >= this < block → logged, forwarded
 #   max_chars: 6000         # cap on text handed to the classifier
 

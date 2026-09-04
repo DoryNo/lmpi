@@ -49,7 +49,7 @@ DEFAULT_WARMUP = 5
 
 DEFAULT_FAST_BLOCK = 0.75
 DEFAULT_FAST_WARN = 0.4
-DEFAULT_DEEP_BLOCK = 0.75
+DEFAULT_DEEP_BLOCK = 0.65
 DEFAULT_DEEP_WARN = 0.5
 DEFAULT_DEEP_MAX_CHARS = 6000
 
@@ -580,6 +580,33 @@ def render_markdown(results: dict[str, Any]) -> str:
                 lines.append(
                     f"| {name} | {split_name} | {stats['n']} | {stats['blocked']} | "
                     f"{stats['block_rate']:.1%} | {stats['warned']} |"
+                )
+        lines.append("")
+
+    if results.get("split_metrics"):
+        split = results["split_metrics"]
+        lines.append("## Tuning / held-out partition")
+        lines.append("")
+        lines.append(
+            f"Deterministic 60/40 tuning/held-out split of the frozen set "
+            f"(seed {split['seed']}, `{split['split_file']}`). All tuning "
+            "decisions used the tuning partition only; held-out numbers below "
+            "were produced by the single final run."
+        )
+        lines.append("")
+        lines.append("| Partition | Split | Items | Blocked | Block rate | Warned |")
+        lines.append("|-----------|-------|-------|---------|------------|--------|")
+        for name, part in split["partitions"].items():
+            for split_name, key in (
+                ("attack", "attack_metrics"),
+                ("clean", "clean_metrics"),
+            ):
+                m = part[key]
+                if m is None:
+                    continue
+                lines.append(
+                    f"| {name} | {split_name} | {m['n']} | {m['blocked']} | "
+                    f"{m['block_rate']:.1%} | {m['warned']} |"
                 )
         lines.append("")
 

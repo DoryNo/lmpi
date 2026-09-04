@@ -382,6 +382,7 @@ PATTERNS: tuple[Pattern, ...] = (
             r"(?:filters?|restrictions?|limits?|censorship|constraints?|guardrails?)|"
             r"no\s+(?:filters?|restrictions?|limits?|censorship|"
             r"moral\s+filters?|ethical\s+constraints?|content\s+polic(?:y|ies))|"
+            r"no\s+rules\s+to\s+follow|"
             r"bypass\s+(?:all\s+|any\s+|the\s+|your\s+)?"
             r"(?:filters?|restrictions?|safety\s+(?:rules?|filters?|checks?)|"
             r"content\s+polic(?:y|ies)|guardrails?)|"
@@ -430,6 +431,72 @@ PATTERNS: tuple[Pattern, ...] = (
             r"|\bAIM\s*:\s*(?:Niccolo|Niccolò)\s+Machiavelli\b"
         ),
         description="The named AIM (Machiavelli) jailbreak persona.",
+    ),
+    Pattern(
+        pattern_id="rp_ethics_exception",
+        category="roleplay_jailbreak",
+        weight=WEIGHT_ROLEPLAY_JAILBREAK,
+        regex=_compile(
+            r"\bexception\s+to\s+(?:\w+\s+){0,2}"
+            r"(?:AI\s+)?(?:usual\s+)?"
+            r"ethical\s+protocols\b"
+        ),
+        description=(
+            "'This conversation is an exception to AI usual ethical "
+            "protocols' — boilerplate of public roleplay jailbreaks. The "
+            "'ethical protocols' noun pair is nearly absent from benign "
+            "text, so no gating is needed (v1.1 tuning round 1)."
+        ),
+    ),
+    Pattern(
+        pattern_id="rp_impersonate_model",
+        category="roleplay_jailbreak",
+        weight=0.35,
+        tags=(TAG_ROLEPLAY_PERSONA,),
+        regex=_compile(
+            r"\b(?:"
+            r"(?:pretend|acting|act|impersonating|impersonate|roleplay|"
+            r"playing|play)\s+"
+            r"(?:that\s+|as\s+)?"
+            r"(?:you\s+(?:are|were)\s+|to\s+be\s+|it\s+is\s+|as\s+)?"
+            r"(?:an?\s+)?(?:unfiltered\s+|uncensored\s+|unrestricted\s+)?"
+            r"(?:chatgpt|chat\s+gpt|gpt-?\d(?:\.\d)?|gpt\b|claude|"
+            r"llama\s*\d*|gemini|copilot|bing|mistral|openai|deepseek|grok|"
+            r"palm|bard)"
+            r"|no\s+longer\s+(?:chatgpt|chat\s+gpt|gpt\b|claude|"
+            r"an\s+ai(?:\s+model)?)"
+            r"|(?:chatgpt|chat\s+gpt|gpt)\s+does\s+not\s+exist"
+            r")\b"
+        ),
+        description=(
+            "Model-identity manipulation: command the assistant to "
+            "impersonate a named model ('pretend to be Llama 3'), deny its "
+            "own identity ('you are no longer ChatGPT', 'ChatGPT does not "
+            "exist'). Weak alone (below warn) so benign tutorials like "
+            "'act like GPT-4' stay clean; mainly a persona-tag provider "
+            "that unlocks the gated lift patterns (v1.1 tuning round 1)."
+        ),
+    ),
+    Pattern(
+        pattern_id="rp_stay_in_character",
+        category="roleplay_jailbreak",
+        weight=WEIGHT_ROLEPLAY_JAILBREAK,
+        tags=(TAG_ROLEPLAY_LIFT,),
+        requires=(TAG_ROLEPLAY_PERSONA,),
+        regex=_compile(
+            r"\b(?:break(?:ing)?|correct(?:ing)?)\s+"
+            r"(?:your\s+|their\s+|a\s+)?break\s+of\s+character\b"
+            r"|\b(?:if\s+you\s+)?breaks?\s+character\b"
+            r"|\b(?:do\s+not|don['’]t|never)\s+break\s+character\b"
+            r"|\bstay\s+in\s+character\b"
+        ),
+        description=(
+            "Out-of-character enforcement ('correct your break of "
+            "character', 'do not break character') — the stay-in-persona "
+            "clause of roleplay jailbreaks. Gated on a persona tag: "
+            "screenwriting talk about actors breaking character stays "
+            "clean (v1.1 tuning round 1)."
+        ),
     ),
     Pattern(
         pattern_id="rp_persona_ru",
@@ -543,6 +610,17 @@ PATTERNS: tuple[Pattern, ...] = (
         description=(
             "A forged OpenAI-style role object pasted into user content, "
             "e.g. '{\"role\": \"system\", ...}'."
+        ),
+    ),
+    Pattern(
+        pattern_id="fri_system_message_prefix",
+        category="fake_role_injection",
+        weight=0.65,
+        regex=_compile(r"(?m)^\s*system\s+message\s*:\s*[\"'\[]?"),
+        description=(
+            "A forged 'System Message:' turn prefix pasted into user text "
+            "('System Message: \"[...]\"'). Warn-weighted on its own; "
+            "blocks when stacked (v1.1 tuning round 1)."
         ),
     ),
     # ------------------------------------------------------------------ #

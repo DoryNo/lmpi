@@ -37,6 +37,11 @@ from benchmarks import SEED  # noqa: E402
 from benchmarks.hf_sources import configure_hf_caches, resolve_items  # noqa: E402
 from benchmarks.manifest import load_manifest, sha256_file  # noqa: E402
 from benchmarks.runner import (  # noqa: E402
+    DEFAULT_DEEP_BLOCK,
+    DEFAULT_DEEP_MAX_CHARS,
+    DEFAULT_DEEP_WARN,
+    DEFAULT_FAST_BLOCK,
+    DEFAULT_FAST_WARN,
     build_benchmark_pipeline,
     by_source_metrics,
     compare_decisions,
@@ -44,6 +49,7 @@ from benchmarks.runner import (  # noqa: E402
     render_markdown,
     run_items,
 )
+from benchmarks.split import HELD_OUT, TUNING, load_split  # noqa: E402
 
 RESULTS_SCHEMA = "lmpi-benchmark-results/1"
 
@@ -51,8 +57,9 @@ DEFAULT_MANIFEST = REPO_ROOT / "benchmarks" / "eval_set" / "manifest.json"
 DEFAULT_TRICKY = REPO_ROOT / "benchmarks" / "eval_set" / "tricky_benign.jsonl"
 DEFAULT_MODEL = REPO_ROOT / "models" / "deberta-v3-base-prompt-injection-v2"
 DEFAULT_CACHE = REPO_ROOT / "benchmarks" / ".cache"
-DEFAULT_OUT = REPO_ROOT / "benchmarks" / "results" / "results.json"
-DEFAULT_MD = REPO_ROOT / "benchmarks" / "results" / "results.md"
+DEFAULT_OUT = REPO_ROOT / "benchmarks" / "results" / "results_v1.1.json"
+DEFAULT_MD = REPO_ROOT / "benchmarks" / "results" / "results_v1.1.md"
+DEFAULT_SPLIT = REPO_ROOT / "benchmarks" / "eval_set" / "split.json"
 
 LATENCY_NOTE = (
     "Latency is perf_counter wall time around DetectionPipeline.process_request: "
@@ -81,6 +88,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--markdown", type=Path, default=DEFAULT_MD)
+    parser.add_argument(
+        "--split-file",
+        type=Path,
+        default=DEFAULT_SPLIT,
+        help="tuning/held-out split manifest for partition metrics (empty to skip)",
+    )
+    parser.add_argument("--fast-block", type=float, default=DEFAULT_FAST_BLOCK)
+    parser.add_argument("--fast-warn", type=float, default=DEFAULT_FAST_WARN)
+    parser.add_argument("--deep-block", type=float, default=DEFAULT_DEEP_BLOCK)
+    parser.add_argument("--deep-warn", type=float, default=DEFAULT_DEEP_WARN)
+    parser.add_argument("--deep-max-chars", type=int, default=DEFAULT_DEEP_MAX_CHARS)
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--selfcheck", action="store_true")
     parser.add_argument("--selfcheck-size", type=int, default=25)
@@ -172,13 +190,14 @@ def run_selfcheck(args: argparse.Namespace) -> int:
     ] + [(item.id, "clean", texts[item.id]) for item in clean]
 
     print(f"selfcheck: rebuilding pipeline and re-running {len(items)} items…")
+    pipeline_kwargs = _threshold_kwargs(args)
     first = run_items(
-        build_benchmark_pipeline(model_path=str(args.model_path)),
+        build_benchmark_pipeline(model_path=str(args.model_path), **pipeline_kwargs),
         items,
         warmup=1,
     )
     second = run_items(
-        build_benchmark_pipeline(model_path=str(args.model_path)),
+        build_benchmark_pipeline(model_path=str(args.model_path), **pipeline_kwargs),
         items,
         warmup=1,
     )
@@ -190,6 +209,43 @@ def run_selfcheck(args: argparse.Namespace) -> int:
         return 1
     print(f"selfcheck OK: identical decisions on {len(items)} items (both runs)")
     return 0
+
+
+def _threshold_kwargs(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "fast_block": args.fast_block,
+        "fast_warn": args.fast_warn,
+        "deep_block": args.deep_block,
+        "deep_warn": args.deep_warn,
+        "deep_max_chars": args.deep_max_chars,
+    }
+
+
+def _split_metrics(
+    records, split_path: Path | None, manifest_path: Path
+) -> dict[str, Any] | None:
+    """Per-partition (tuning/held-out) metrics for the documented 60/40 split."""
+    if split_path is None:
+        return None
+    split = load_split(split_path, manifest_path=manifest_path)
+    partitions: dict[str, Any] = {}
+    for name in (TUNING, HELD_OUT):
+        ids = split.subset_of(name, "attack") | split.subset_of(name, "clean")
+        part_records = [r for r in records if r.id in ids]
+        attack = [r for r in part_records if r.split == "attack"]
+        clean = [r for r in part_records if r.split == "clean"]
+        partitions[name] = {
+            "counts": {"attack": len(attack), "clean": len(clean)},
+            "attack_metrics": compute_metrics(attack) if attack else None,
+            "clean_metrics": compute_metrics(clean) if clean else None,
+            "attack_by_source": by_source_metrics(attack),
+            "clean_by_source": by_source_metrics(clean),
+        }
+    return {
+        "split_file": str(split_path.relative_to(REPO_ROOT)),
+        "seed": split.seed,
+        "partitions": partitions,
+    }
 
 
 def run_benchmark(args: argparse.Namespace) -> int:
@@ -211,7 +267,9 @@ def run_benchmark(args: argparse.Namespace) -> int:
     print(f"resolved {len(items)} items from the frozen manifest")
 
     try:
-        bundle = build_benchmark_pipeline(model_path=str(args.model_path))
+        bundle = build_benchmark_pipeline(
+            model_path=str(args.model_path), **_threshold_kwargs(args)
+        )
     except RuntimeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -271,6 +329,10 @@ def run_benchmark(args: argparse.Namespace) -> int:
         },
         "per_item": [record.to_dict() for record in records],
     }
+    if args.split_file and str(args.split_file).strip():
+        results["split_metrics"] = _split_metrics(
+            records, args.split_file, args.manifest
+        )
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
@@ -297,8 +359,10 @@ def run_benchmark(args: argparse.Namespace) -> int:
         f"p95={results['latency_overall_ms']['p95']:.1f}ms "
         f"p99={results['latency_overall_ms']['p99']:.1f}ms"
     )
-    print(f"results:  {args.out.relative_to(REPO_ROOT)}")
-    print(f"markdown: {args.markdown.relative_to(REPO_ROOT)}")
+    print(f"results:  {args.out if args.out.is_absolute() else REPO_ROOT / args.out}")
+    print(
+        f"markdown: {args.markdown if args.markdown.is_absolute() else REPO_ROOT / args.markdown}"
+    )
     print(f"total wall time: {time.perf_counter() - started:.1f}s")
     return 0
 
