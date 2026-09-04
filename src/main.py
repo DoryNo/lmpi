@@ -69,7 +69,7 @@ def create_app(
     app = FastAPI(title="LMPI Proxy", version=__version__, lifespan=lifespan)
     app.state.settings = settings or load_settings()
     app.state.transport = transport
-    app.state.pipeline = DetectionPipeline()
+    app.state.pipeline = DetectionPipeline(settings=app.state.settings)
 
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request) -> Response:

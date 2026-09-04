@@ -20,6 +20,11 @@ from typing import Any, Mapping
 
 import yaml
 
+from .fast_path.detector import (
+    DEFAULT_BLOCK_THRESHOLD as DEFAULT_FAST_PATH_BLOCK_THRESHOLD,
+    DEFAULT_WARN_THRESHOLD as DEFAULT_FAST_PATH_WARN_THRESHOLD,
+)
+
 logger = logging.getLogger("lmpi.config")
 
 DEFAULT_UPSTREAM_URL = "https://api.openai.com"
@@ -32,12 +37,24 @@ ENV_PREFIX = "LMPI_"
 
 @dataclass(frozen=True)
 class Settings:
-    """Runtime settings for the LMPI proxy."""
+    """Runtime settings for the LMPI proxy.
+
+    Fast-path settings (Agent 3):
+
+    - ``fast_path_enabled`` — run the regex/heuristic stage in the pipeline
+    - ``fast_path_block_threshold`` — score at/above which requests are
+      blocked with HTTP 403
+    - ``fast_path_warn_threshold`` — score at/above which requests are only
+      logged (warn) but still forwarded
+    """
 
     upstream_url: str = DEFAULT_UPSTREAM_URL
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
+    fast_path_enabled: bool = True
+    fast_path_block_threshold: float = DEFAULT_FAST_PATH_BLOCK_THRESHOLD
+    fast_path_warn_threshold: float = DEFAULT_FAST_PATH_WARN_THRESHOLD
     config_path: str | None = None
 
 
@@ -59,6 +76,31 @@ def _parse_timeout(value: Any) -> float:
     if timeout <= 0:
         raise ValueError(f"request_timeout must be positive, got {timeout}")
     return timeout
+
+
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+_FALSY = frozenset({"0", "false", "no", "off"})
+
+
+def _parse_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in _TRUTHY:
+        return True
+    if text in _FALSY:
+        return False
+    raise ValueError(f"Invalid boolean value: {value!r}")
+
+
+def _parse_threshold(value: Any, *, name: str) -> float:
+    try:
+        threshold = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid {name} value: {value!r}") from exc
+    if not 0.0 <= threshold <= 1.0:
+        raise ValueError(f"{name} must be within [0, 1], got {threshold}")
+    return threshold
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -103,6 +145,21 @@ def load_settings(
     port = _parse_port(pick("port", DEFAULT_PORT))
     request_timeout = _parse_timeout(pick("request_timeout", DEFAULT_REQUEST_TIMEOUT))
 
+    fast_path_enabled = _parse_bool(pick("fast_path_enabled", True))
+    fast_path_block_threshold = _parse_threshold(
+        pick("fast_path_block_threshold", DEFAULT_FAST_PATH_BLOCK_THRESHOLD),
+        name="fast_path_block_threshold",
+    )
+    fast_path_warn_threshold = _parse_threshold(
+        pick("fast_path_warn_threshold", DEFAULT_FAST_PATH_WARN_THRESHOLD),
+        name="fast_path_warn_threshold",
+    )
+    if fast_path_warn_threshold > fast_path_block_threshold:
+        raise ValueError(
+            f"fast_path_warn_threshold ({fast_path_warn_threshold}) must not "
+            f"exceed fast_path_block_threshold ({fast_path_block_threshold})"
+        )
+
     if not upstream_url.lower().startswith(("http://", "https://")):
         raise ValueError(
             f"upstream_url must start with http:// or https://, got {upstream_url!r}"
@@ -113,13 +170,20 @@ def load_settings(
         host=host,
         port=port,
         request_timeout=request_timeout,
+        fast_path_enabled=fast_path_enabled,
+        fast_path_block_threshold=fast_path_block_threshold,
+        fast_path_warn_threshold=fast_path_warn_threshold,
         config_path=resolved_path,
     )
     logger.debug(
-        "Loaded settings: upstream=%s host=%s port=%s timeout=%ss",
+        "Loaded settings: upstream=%s host=%s port=%s timeout=%ss "
+        "fast_path=%s block=%s warn=%s",
         settings.upstream_url,
         settings.host,
         settings.port,
         settings.request_timeout,
+        settings.fast_path_enabled,
+        settings.fast_path_block_threshold,
+        settings.fast_path_warn_threshold,
     )
     return settings
