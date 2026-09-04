@@ -52,6 +52,16 @@ The second pipeline stage (`src/fast_path/`) is a regex/heuristic detector that 
 - **False-positive controls** — word-boundary anchoring, structural gating (a persona switch alone or a restriction-lift phrase alone never scores — e.g. "Write a story where a robot must answer without restrictions" stays clean), benign collocations excluded ("ignore previous test results"), and quoted mentions (`"ignore all previous instructions"` discussed in a security course) demoted to zero weight.
 - **Honest caveat:** all weights are heuristic priors, not measurements — they will be tuned against the frozen benchmark eval set (see Benchmark Results below).
 
+## Canary Token Detection
+
+The final pipeline stage (`src/canary/`) answers a question the classifier can't: *did the system prompt itself leak?*
+
+- **Injection** — after the pipeline rewrites the payload, a short HMAC-derived audit sentence (`[Internal audit token: LMPI-CANARY-ab12cd34]`) is appended to the system message right before it is sent upstream. Tokens are derived per-request from `HMAC-SHA256(secret, random salt)` — a unique token per request means a leak can be attributed to that request and leaks can't be correlated across requests (per-session tokens would be cheaper but correlate leaks). If no system message is present, none is added (transparency) unless `LMPI_CANARY_ADD_MISSING_SYSTEM=true`.
+- **Scanning** — both response bodies and SSE streams are scanned for the exact token. The streaming scanner holds back at most `token_len − 1` bytes so a canary split across chunk boundaries is still caught, without buffering the stream.
+- **Actions** — `redact` (default): the token is replaced with `[REDACTED]` on the way to the client and a structured JSON alert (token fingerprint, not the value) is logged. `block`: non-streaming responses are replaced with a 502 leak-detected error; streaming is terminated with an `lmpi_leak_detected` SSE error event.
+- **Secret** — if `LMPI_CANARY_SECRET` is unset, an ephemeral secret is generated at startup (warning logged; tokens are still unique per request, but restarts can't be compared).
+- **Honest caveat:** canary detection only catches leaks that copy the token verbatim — a model that paraphrases the system prompt is not caught (paraphrase resistance needs semantic detection, see Roadmap).
+
 ## Benchmark Results
 
 > ⚠️ Results will be published after v1 completion. Metrics will include:
@@ -122,6 +132,10 @@ Configuration (env vars override `config.yaml`):
 | `LMPI_FAST_PATH_ENABLED` | `true` | Fast-path regex/heuristic stage on/off |
 | `LMPI_FAST_PATH_BLOCK_THRESHOLD` | `0.75` | Noisy-OR score at/above which requests are blocked |
 | `LMPI_FAST_PATH_WARN_THRESHOLD` | `0.4` | Score at/above which requests are logged (warn) but forwarded |
+| `LMPI_CANARY_ENABLED` | `true` | Canary token injection + leak scanning on/off |
+| `LMPI_CANARY_SECRET` | — (ephemeral + warning) | HMAC secret for canary derivation; set in production |
+| `LMPI_CANARY_ACTION` | `redact` | Leak response: `redact` (replace with `[REDACTED]`) / `block` (502 / SSE error) |
+| `LMPI_CANARY_ADD_MISSING_SYSTEM` | `false` | Add a system message (with canary) when the caller sent none |
 
 Run tests (no real network — upstream is mocked):
 

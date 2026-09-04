@@ -13,3 +13,12 @@ request_timeout: 300.0
 #   enabled: true
 #   block_threshold: 0.75   # score >= this → HTTP 403
 #   warn_threshold: 0.4     # score >= this < block → logged, forwarded
+
+# Canary tokens (stage 3): HMAC canary injected into the system prompt and
+# scanned for in responses to catch system prompt leakage. secret: HMAC key
+# for token derivation — leave empty for an ephemeral per-process secret.
+# canary:
+#   enabled: true
+#   action: redact          # redact (replace with [REDACTED]) | block (502)
+#   secret: ""
+#   add_missing_system: false  # add a system message when caller sent none

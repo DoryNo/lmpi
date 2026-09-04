@@ -18,7 +18,7 @@ import pytest
 import uvicorn
 from fastapi.testclient import TestClient
 
-from src.config import Settings, load_settings
+from src.config import CanarySettings, Settings, load_settings
 from src.detection.pipeline import DetectionPipeline, PipelineResult
 from src.main import create_app
 
@@ -34,9 +34,15 @@ def make_client(
     handler,
     *,
     pipeline: DetectionPipeline | None = None,
+    canary: CanarySettings | None = None,
 ) -> TestClient:
     app = create_app(
-        settings=Settings(upstream_url=UPSTREAM),
+        settings=Settings(
+            upstream_url=UPSTREAM,
+            # Canary off by default in tests so existing passthrough tests
+            # keep byte-exact semantics; canary tests pass settings explicitly.
+            canary=canary or CanarySettings(enabled=False, secret="test-secret"),
+        ),
         transport=httpx.MockTransport(handler),
     )
     if pipeline is not None:
