@@ -139,7 +139,7 @@
 
 **Задача:** Финальный README с честными метриками
 
-**Статус:** ✅ done — this PR (README polish, verified quickstart, demo examples, docs consistency, CI)
+**Статус:** ✅ done — PR #7 (README polish, verified quickstart, demo examples, docs consistency, CI)
 
 **Scope:**
 - Что это и зачем (1 абзац)

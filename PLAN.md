@@ -146,8 +146,8 @@ a single-request proxy pass-through.
 
 ## Неделя 4: Benchmark + README
 
-**Статус: ✅ завершено** — PR #6 (benchmark + results committed) and this
-docs pass. Deviation: HarmBench was skipped (gated dataset — downloading it
+**Статус: ✅ завершено** — PR #6 (benchmark + results committed) and PR #7
+(docs pass). Deviation: HarmBench was skipped (gated dataset — downloading it
 would break clean-checkout reproduction); the attack set is 100 JBB harmful
 behaviors + 100 in-the-wild jailbreaks.
 
