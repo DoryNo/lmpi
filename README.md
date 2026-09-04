@@ -56,6 +56,52 @@ docker run -p 8080:8080 -e UPSTREAM_URL=https://api.openai.com lmpi:latest
 export OPENAI_BASE_URL=http://localhost:8080/v1
 ```
 
+## Quickstart (dev)
+
+Requires Python 3.11+.
+
+```bash
+# 1. Install
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. Run the proxy (forwards to LMPI_UPSTREAM_URL, default https://api.openai.com)
+uvicorn src.main:app --host 0.0.0.0 --port 8080
+# ...or let the proxy read LMPI_HOST / LMPI_PORT / LMPI_UPSTREAM_URL itself:
+python -m src.main
+
+# Docker Compose alternative
+docker compose up --build
+```
+
+Try it (streaming — `-N` disables curl buffering so you see SSE chunks live):
+
+```bash
+curl -N -X POST http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o-mini", "stream": true, "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+Non-streaming: drop `"stream": true` (and `-N`). Health check: `curl http://localhost:8080/health`.
+
+Configuration (env vars override `config.yaml`):
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `LMPI_UPSTREAM_URL` | `https://api.openai.com` | Upstream LLM API base URL |
+| `LMPI_HOST` / `LMPI_PORT` | `0.0.0.0` / `8080` | Proxy bind address |
+| `LMPI_REQUEST_TIMEOUT` | `300.0` | Read timeout, seconds |
+| `LMPI_CONFIG_PATH` | — | Path to a YAML config file |
+
+Run tests (no real network — upstream is mocked):
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
 ## Limitations (v1)
 
 Honest list of what v1 does NOT include:

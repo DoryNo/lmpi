@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lmpi"
+version = "0.1.0"
+description = "LMPI — LLM Prompt-Injection Firewall: transparent proxy in front of OpenAI-compatible APIs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+
+[tool.setuptools.packages.find]
+include = ["src", "src.*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
