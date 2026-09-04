@@ -37,12 +37,16 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8080
 DEFAULT_REQUEST_TIMEOUT = 300.0
 DEFAULT_NORMALIZATION_MODE = "rewrite"
+DEFAULT_CANARY_ACTION = "redact"
 DEFAULT_DEEP_PATH_MODEL_PATH = "models/deberta-v3-base-prompt-injection-v2"
 
 ENV_PREFIX = "LMPI_"
 
 # normalization.mode: what to do when the normalization stage finds something.
 NORMALIZATION_MODES = ("rewrite", "block", "log")
+
+# canary.action: what to do when a canary token leaks into a response.
+CANARY_ACTIONS = ("redact", "block")
 
 _BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
 _BOOL_FALSE = frozenset({"0", "false", "no", "off"})
@@ -104,6 +108,25 @@ class DeepPathSettings:
 
 
 @dataclass(frozen=True)
+class CanarySettings:
+    """Canary token (system prompt leak detection) settings.
+
+    ``enabled`` defaults to **True** with ``action="redact"`` — leak
+    detection on by default, and a leaked canary is replaced with
+    ``[REDACTED]`` rather than killing the response. When ``secret`` is
+    unset the manager generates an ephemeral per-process secret and logs a
+    warning (tokens are then not reproducible across restarts).
+    ``add_missing_system`` opts in to injecting a system message when the
+    request has none; by default the proxy stays transparent.
+    """
+
+    enabled: bool = True
+    secret: str | None = None
+    action: str = DEFAULT_CANARY_ACTION
+    add_missing_system: bool = False
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings for the LMPI proxy."""
 
@@ -117,6 +140,7 @@ class Settings:
     )
     fast_path: FastPathSettings = field(default_factory=FastPathSettings)
     deep_path: DeepPathSettings = field(default_factory=DeepPathSettings)
+    canary: CanarySettings = field(default_factory=CanarySettings)
 
 
 def _parse_port(value: Any) -> int:
@@ -168,6 +192,24 @@ def _parse_threshold(value: Any, *, name: str) -> float:
     if not 0.0 <= threshold <= 1.0:
         raise ValueError(f"{name} must be within [0, 1], got {threshold}")
     return threshold
+
+
+def _parse_canary_action(value: Any) -> str:
+    action = str(value).strip().lower()
+    if action not in CANARY_ACTIONS:
+        raise ValueError(
+            f"canary action must be one of {', '.join(CANARY_ACTIONS)}, "
+            f"got {value!r}"
+        )
+    return action
+
+
+def _parse_canary_secret(value: Any) -> str | None:
+    """Empty/whitespace secret values fall back to the ephemeral default."""
+    if value is None:
+        return None
+    secret = str(value).strip()
+    return secret or None
 
 
 def _parse_positive_int(value: Any, *, name: str) -> int:
@@ -338,6 +380,35 @@ def load_settings(
             f"exceed deep_path_block_threshold ({deep_path.block_threshold})"
         )
 
+    canary_section = file_values.get("canary")
+    if canary_section is None:
+        canary_section = {}
+    if not isinstance(canary_section, dict):
+        raise ValueError(
+            "canary config section must be a mapping, got "
+            f"{type(canary_section).__name__}"
+        )
+
+    def canary_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}CANARY_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if canary_section.get(key) is not None:
+            return canary_section[key]
+        return default
+
+    canary = CanarySettings(
+        enabled=_parse_bool(
+            canary_pick("enabled", True), f"{ENV_PREFIX}CANARY_ENABLED"
+        ),
+        secret=_parse_canary_secret(canary_pick("secret", None)),
+        action=_parse_canary_action(canary_pick("action", DEFAULT_CANARY_ACTION)),
+        add_missing_system=_parse_bool(
+            canary_pick("add_missing_system", False),
+            f"{ENV_PREFIX}CANARY_ADD_MISSING_SYSTEM",
+        ),
+    )
+
     if not upstream_url.lower().startswith(("http://", "https://")):
         raise ValueError(
             f"upstream_url must start with http:// or https://, got {upstream_url!r}"
@@ -352,12 +423,14 @@ def load_settings(
         normalization=normalization,
         fast_path=fast_path,
         deep_path=deep_path,
+        canary=canary,
     )
     logger.debug(
         "Loaded settings: upstream=%s host=%s port=%s timeout=%s "
         "normalization.mode=%s fast_path.enabled=%s "
         "fast_path.block=%s fast_path.warn=%s "
-        "deep_path.enabled=%s deep_path.model_path=%s",
+        "deep_path.enabled=%s deep_path.model_path=%s "
+        "canary.enabled=%s canary.action=%s canary.secret=%s",
         settings.upstream_url,
         settings.host,
         settings.port,
@@ -368,5 +441,8 @@ def load_settings(
         settings.fast_path.warn_threshold,
         settings.deep_path.enabled,
         settings.deep_path.model_path,
+        settings.canary.enabled,
+        settings.canary.action,
+        "set" if settings.canary.secret else "ephemeral",
     )
     return settings

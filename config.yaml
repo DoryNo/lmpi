@@ -22,3 +22,12 @@ request_timeout: 300.0
 #   block_threshold: 0.75   # injection prob >= this → HTTP 403
 #   warn_threshold: 0.5     # >= this < block → logged, forwarded
 #   max_chars: 6000         # cap on text handed to the classifier
+
+# Canary tokens (final stage): HMAC canary injected into the system prompt
+# and scanned for in responses to catch system prompt leakage. secret: HMAC
+# key for token derivation — leave empty for an ephemeral per-process secret.
+# canary:
+#   enabled: true
+#   action: redact          # redact (replace with [REDACTED]) | block (502)
+#   secret: ""
+#   add_missing_system: false  # add a system message when caller sent none

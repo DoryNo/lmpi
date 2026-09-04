@@ -19,6 +19,7 @@ import uvicorn
 from fastapi import FastAPI, Request, Response
 
 from . import __version__
+from .canary import CanaryManager
 from .config import Settings, load_settings
 from .detection.pipeline import DetectionPipeline
 from .deep_path import DeepPathDetector
@@ -71,6 +72,15 @@ def build_pipeline(settings: Settings) -> DetectionPipeline:
     )
 
 
+def build_canary_manager(settings: Settings) -> CanaryManager:
+    """Build the canary manager (system prompt injection + leak scanning).
+
+    Without ``LMPI_CANARY_SECRET`` an ephemeral secret is generated here
+    (startup) with a warning — tokens then differ across restarts.
+    """
+    return CanaryManager(settings.canary)
+
+
 def build_upstream_client(
     settings: Settings, transport: httpx.AsyncBaseTransport | None = None
 ) -> httpx.AsyncClient:
@@ -115,6 +125,7 @@ def create_app(
     app.state.settings = settings or load_settings()
     app.state.transport = transport
     app.state.pipeline = build_pipeline(app.state.settings)
+    app.state.canary = build_canary_manager(app.state.settings)
 
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request) -> Response:
