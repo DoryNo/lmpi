@@ -1,16 +1,21 @@
 # LMPI — Roadmap
 
-## v1.0 — MVP (текущий release)
+## v1.0 — MVP (✅ доставлено)
 
 **Фокус:** Prompt Injection Detection + Canary Token Detection
 
 Что входит:
 - Ingress normalization (NFKC, zero-width, base64/hex/rot13, pseudo-system delimiters)
 - Fast path (regex/heuristic patterns)
-- Deep path (quantized DeBERTa classifier via ONNX Runtime)
+- Deep path (DeBERTa classifier via ONNX Runtime — full-precision; upstream publishes no quantized export)
 - Canary token detection (HMAC-based system prompt leakage detection)
 - Transparent proxy (/v1/chat/completions + SSE streaming)
 - Frozen benchmark с честными метриками (TP/FP/latency)
+
+Threshold tuning: сознательно **не выполнено** в v1 — поставляемые пороги
+это baseline-as-shipped значения, зафиксированные до прогона бенчмарка,
+чтобы метрики оставались out-of-sample. Тюнинг по eval set — первый пункт
+v1.1.
 
 Что НЕ входит (осознанно):
 - Tool call firewall
@@ -23,6 +28,7 @@
 
 ## v1.1 — Hardening
 
+- [ ] Threshold tuning against the frozen eval set — *deliberately skipped in v1 (conscious decision: keep the shipped benchmark numbers baseline-as-shipped / out-of-sample); first v1.1 item, documented as its own iteration*
 - [ ] Rate limiting (per-client, per-API-key)
 - [ ] Request/response logging с redaction
 - [ ] Structured audit log (JSON lines)
