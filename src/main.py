@@ -26,6 +26,14 @@ from .proxy import check_upstream, forward_chat_completions
 logger = logging.getLogger("lmpi")
 
 
+def build_pipeline(settings: Settings) -> DetectionPipeline:
+    """Build the detection pipeline with the configured stages."""
+    return DetectionPipeline(
+        normalization=settings.normalization,
+        fast_path=settings.fast_path,
+    )
+
+
 def build_upstream_client(
     settings: Settings, transport: httpx.AsyncBaseTransport | None = None
 ) -> httpx.AsyncClient:
@@ -69,7 +77,7 @@ def create_app(
     app = FastAPI(title="LMPI Proxy", version=__version__, lifespan=lifespan)
     app.state.settings = settings or load_settings()
     app.state.transport = transport
-    app.state.pipeline = DetectionPipeline(settings=app.state.settings)
+    app.state.pipeline = build_pipeline(app.state.settings)
 
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request) -> Response:

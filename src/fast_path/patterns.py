@@ -515,7 +515,10 @@ PATTERNS: tuple[Pattern, ...] = (
             r"start_header_id|end_header_id|system|assistant|user)\s*\|>"
         ),
         description=(
-            "Raw ChatML/llama special-token injection, e.g. '<|im_start|>system'."
+            "Raw ChatML/llama special-token injection, e.g. '<|im_start|>system'. "
+            "Defense in depth: the normalization stage neutralizes these by "
+            "default, so a hit here means raw tokens reached the detector "
+            "(normalization toggles off)."
         ),
     ),
     Pattern(

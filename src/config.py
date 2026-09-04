@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -31,31 +31,64 @@ DEFAULT_UPSTREAM_URL = "https://api.openai.com"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8080
 DEFAULT_REQUEST_TIMEOUT = 300.0
+DEFAULT_NORMALIZATION_MODE = "rewrite"
 
 ENV_PREFIX = "LMPI_"
+
+# normalization.mode: what to do when the normalization stage finds something.
+NORMALIZATION_MODES = ("rewrite", "block", "log")
+
+_BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
+_BOOL_FALSE = frozenset({"0", "false", "no", "off"})
+
+
+@dataclass(frozen=True)
+class NormalizationSettings:
+    """Ingress normalization stage settings.
+
+    ``mode`` controls the action when the stage finds something:
+    ``rewrite`` (default) rewrites the payload with the cleaned text,
+    ``block`` rejects the request with HTTP 403, ``log`` passes the request
+    unchanged and only logs the findings.
+    """
+
+    mode: str = DEFAULT_NORMALIZATION_MODE
+    unicode: bool = True
+    base64: bool = True
+    hex: bool = True
+    rot13: bool = True
+    delimiters: bool = True
+
+
+@dataclass(frozen=True)
+class FastPathSettings:
+    """Fast-path (stage 2) settings.
+
+    ``enabled`` toggles the regex/heuristic stage; ``block_threshold`` is
+    the composite noisy-OR score at/above which the request is rejected with
+    HTTP 403; ``warn_threshold`` is the score at/above which the request is
+    logged (warn) but still forwarded. Both thresholds are heuristics
+    pending tuning against the benchmark eval set (Agent 7).
+    """
+
+    enabled: bool = True
+    block_threshold: float = DEFAULT_FAST_PATH_BLOCK_THRESHOLD
+    warn_threshold: float = DEFAULT_FAST_PATH_WARN_THRESHOLD
 
 
 @dataclass(frozen=True)
 class Settings:
-    """Runtime settings for the LMPI proxy.
-
-    Fast-path settings (Agent 3):
-
-    - ``fast_path_enabled`` — run the regex/heuristic stage in the pipeline
-    - ``fast_path_block_threshold`` — score at/above which requests are
-      blocked with HTTP 403
-    - ``fast_path_warn_threshold`` — score at/above which requests are only
-      logged (warn) but still forwarded
-    """
+    """Runtime settings for the LMPI proxy."""
 
     upstream_url: str = DEFAULT_UPSTREAM_URL
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
-    fast_path_enabled: bool = True
-    fast_path_block_threshold: float = DEFAULT_FAST_PATH_BLOCK_THRESHOLD
-    fast_path_warn_threshold: float = DEFAULT_FAST_PATH_WARN_THRESHOLD
     config_path: str | None = None
+    normalization: NormalizationSettings = field(
+        default_factory=NormalizationSettings
+    )
+    fast_path: FastPathSettings = field(default_factory=FastPathSettings)
 
 
 def _parse_port(value: Any) -> int:
@@ -78,19 +111,25 @@ def _parse_timeout(value: Any) -> float:
     return timeout
 
 
-_TRUTHY = frozenset({"1", "true", "yes", "on"})
-_FALSY = frozenset({"0", "false", "no", "off"})
+def _parse_mode(value: Any) -> str:
+    mode = str(value).strip().lower()
+    if mode not in NORMALIZATION_MODES:
+        raise ValueError(
+            f"normalization mode must be one of {', '.join(NORMALIZATION_MODES)}, "
+            f"got {value!r}"
+        )
+    return mode
 
 
-def _parse_bool(value: Any) -> bool:
+def _parse_bool(value: Any, env_key: str) -> bool:
     if isinstance(value, bool):
         return value
-    text = str(value).strip().lower()
-    if text in _TRUTHY:
+    lowered = str(value).strip().lower()
+    if lowered in _BOOL_TRUE:
         return True
-    if text in _FALSY:
+    if lowered in _BOOL_FALSE:
         return False
-    raise ValueError(f"Invalid boolean value: {value!r}")
+    raise ValueError(f"Invalid boolean for {env_key}: {value!r}")
 
 
 def _parse_threshold(value: Any, *, name: str) -> float:
@@ -145,19 +184,73 @@ def load_settings(
     port = _parse_port(pick("port", DEFAULT_PORT))
     request_timeout = _parse_timeout(pick("request_timeout", DEFAULT_REQUEST_TIMEOUT))
 
-    fast_path_enabled = _parse_bool(pick("fast_path_enabled", True))
-    fast_path_block_threshold = _parse_threshold(
-        pick("fast_path_block_threshold", DEFAULT_FAST_PATH_BLOCK_THRESHOLD),
-        name="fast_path_block_threshold",
-    )
-    fast_path_warn_threshold = _parse_threshold(
-        pick("fast_path_warn_threshold", DEFAULT_FAST_PATH_WARN_THRESHOLD),
-        name="fast_path_warn_threshold",
-    )
-    if fast_path_warn_threshold > fast_path_block_threshold:
+    normalization_section = file_values.get("normalization")
+    if normalization_section is None:
+        normalization_section = {}
+    if not isinstance(normalization_section, dict):
         raise ValueError(
-            f"fast_path_warn_threshold ({fast_path_warn_threshold}) must not "
-            f"exceed fast_path_block_threshold ({fast_path_block_threshold})"
+            "normalization config section must be a mapping, got "
+            f"{type(normalization_section).__name__}"
+        )
+
+    def norm_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}NORMALIZATION_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if normalization_section.get(key) is not None:
+            return normalization_section[key]
+        return default
+
+    normalization = NormalizationSettings(
+        mode=_parse_mode(norm_pick("mode", DEFAULT_NORMALIZATION_MODE)),
+        unicode=_parse_bool(
+            norm_pick("unicode", True), f"{ENV_PREFIX}NORMALIZATION_UNICODE"
+        ),
+        base64=_parse_bool(
+            norm_pick("base64", True), f"{ENV_PREFIX}NORMALIZATION_BASE64"
+        ),
+        hex=_parse_bool(norm_pick("hex", True), f"{ENV_PREFIX}NORMALIZATION_HEX"),
+        rot13=_parse_bool(norm_pick("rot13", True), f"{ENV_PREFIX}NORMALIZATION_ROT13"),
+        delimiters=_parse_bool(
+            norm_pick("delimiters", True),
+            f"{ENV_PREFIX}NORMALIZATION_DELIMITERS",
+        ),
+    )
+
+    fast_path_section = file_values.get("fast_path")
+    if fast_path_section is None:
+        fast_path_section = {}
+    if not isinstance(fast_path_section, dict):
+        raise ValueError(
+            "fast_path config section must be a mapping, got "
+            f"{type(fast_path_section).__name__}"
+        )
+
+    def fp_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}FAST_PATH_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if fast_path_section.get(key) is not None:
+            return fast_path_section[key]
+        return default
+
+    fast_path = FastPathSettings(
+        enabled=_parse_bool(
+            fp_pick("enabled", True), f"{ENV_PREFIX}FAST_PATH_ENABLED"
+        ),
+        block_threshold=_parse_threshold(
+            fp_pick("block_threshold", DEFAULT_FAST_PATH_BLOCK_THRESHOLD),
+            name="fast_path_block_threshold",
+        ),
+        warn_threshold=_parse_threshold(
+            fp_pick("warn_threshold", DEFAULT_FAST_PATH_WARN_THRESHOLD),
+            name="fast_path_warn_threshold",
+        ),
+    )
+    if fast_path.warn_threshold > fast_path.block_threshold:
+        raise ValueError(
+            f"fast_path_warn_threshold ({fast_path.warn_threshold}) must not "
+            f"exceed fast_path_block_threshold ({fast_path.block_threshold})"
         )
 
     if not upstream_url.lower().startswith(("http://", "https://")):
@@ -170,20 +263,21 @@ def load_settings(
         host=host,
         port=port,
         request_timeout=request_timeout,
-        fast_path_enabled=fast_path_enabled,
-        fast_path_block_threshold=fast_path_block_threshold,
-        fast_path_warn_threshold=fast_path_warn_threshold,
         config_path=resolved_path,
+        normalization=normalization,
+        fast_path=fast_path,
     )
     logger.debug(
-        "Loaded settings: upstream=%s host=%s port=%s timeout=%ss "
-        "fast_path=%s block=%s warn=%s",
+        "Loaded settings: upstream=%s host=%s port=%s timeout=%s "
+        "normalization.mode=%s fast_path.enabled=%s "
+        "fast_path.block=%s fast_path.warn=%s",
         settings.upstream_url,
         settings.host,
         settings.port,
         settings.request_timeout,
-        settings.fast_path_enabled,
-        settings.fast_path_block_threshold,
-        settings.fast_path_warn_threshold,
+        settings.normalization.mode,
+        settings.fast_path.enabled,
+        settings.fast_path.block_threshold,
+        settings.fast_path.warn_threshold,
     )
     return settings
