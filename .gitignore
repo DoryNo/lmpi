@@ -21,3 +21,7 @@ build/
 
 # Large model binaries (Agent 5: quantized ONNX models)
 models/
+
+# Benchmark runtime caches: eval-set datasets downloaded at run time
+# (manifest is committed; the dataset texts are NOT, per Agent 7 safety rule)
+benchmarks/.cache/

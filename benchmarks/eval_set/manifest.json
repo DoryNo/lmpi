@@ -1,0 +1,3609 @@
+{
+  "manifest_version": 1,
+  "frozen_at": "2026-09-04T19:55:55+00:00",
+  "seed": 20260905,
+  "selection_rule": "jbb: attacks — all 100 rows where subset == 'harmful', dataset order, clean — all 100 rows where subset == 'benign', dataset order; wild: attacks — seeded sample: sorted(random.Random(20260905).sample(range(1405), 100)), pinned revision, clean — not used; ultrachat: attacks — not used, clean — seeded sample: sorted(random.Random(20260906).sample(range(23110), 170)), pinned revision; prompt_id recorded as text_ref",
+  "sources": {
+    "jbb": {
+      "repo": "walledai/JailbreakBench",
+      "config": null,
+      "split": "train",
+      "revision": "119a73e012e44035957c25a483f7f721bb348839",
+      "text_field": "prompt",
+      "streaming": false,
+      "description": "JailbreakBench behaviors (walledai mirror of JBB-Behaviors): 100 harmful behavior requests + 100 benign behavior requests, single-turn prompts"
+    },
+    "wild": {
+      "repo": "TrustAIRLab/in-the-wild-jailbreak-prompts",
+      "config": "jailbreak_2023_12_25",
+      "split": "train",
+      "revision": "a10aab8eff1c73165a442d4464dce192bd28b9c5",
+      "text_field": "prompt",
+      "streaming": true,
+      "description": "1405 jailbreak prompts collected in the wild (2023-12-25 snapshot), all labeled jailbreak=True; real adversarial prompt texts including role-play wrappers and instruction overrides"
+    },
+    "ultrachat": {
+      "repo": "HuggingFaceH4/ultrachat_200k",
+      "config": "default",
+      "split": "test_sft",
+      "revision": "8049631c405ae6576f93f445c6b8166f76f5505a",
+      "text_field": "prompt",
+      "streaming": true,
+      "description": "UltraChat 200k supervised-fine-tuning split: first-turn user prompts of real multi-turn conversations (benign usage)"
+    }
+  },
+  "attack": [
+    {
+      "id": "jbb-harmful-100",
+      "source": "jbb",
+      "row_index": 100,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-101",
+      "source": "jbb",
+      "row_index": 101,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-102",
+      "source": "jbb",
+      "row_index": 102,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-103",
+      "source": "jbb",
+      "row_index": 103,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-104",
+      "source": "jbb",
+      "row_index": 104,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-105",
+      "source": "jbb",
+      "row_index": 105,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-106",
+      "source": "jbb",
+      "row_index": 106,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-107",
+      "source": "jbb",
+      "row_index": 107,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-108",
+      "source": "jbb",
+      "row_index": 108,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-109",
+      "source": "jbb",
+      "row_index": 109,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-harmful-110",
+      "source": "jbb",
+      "row_index": 110,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-111",
+      "source": "jbb",
+      "row_index": 111,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-112",
+      "source": "jbb",
+      "row_index": 112,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-113",
+      "source": "jbb",
+      "row_index": 113,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-114",
+      "source": "jbb",
+      "row_index": 114,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-115",
+      "source": "jbb",
+      "row_index": 115,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-116",
+      "source": "jbb",
+      "row_index": 116,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-117",
+      "source": "jbb",
+      "row_index": 117,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-118",
+      "source": "jbb",
+      "row_index": 118,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-119",
+      "source": "jbb",
+      "row_index": 119,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-harmful-120",
+      "source": "jbb",
+      "row_index": 120,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-121",
+      "source": "jbb",
+      "row_index": 121,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-122",
+      "source": "jbb",
+      "row_index": 122,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-123",
+      "source": "jbb",
+      "row_index": 123,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-124",
+      "source": "jbb",
+      "row_index": 124,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-125",
+      "source": "jbb",
+      "row_index": 125,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-126",
+      "source": "jbb",
+      "row_index": 126,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-127",
+      "source": "jbb",
+      "row_index": 127,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-128",
+      "source": "jbb",
+      "row_index": 128,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-129",
+      "source": "jbb",
+      "row_index": 129,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-130",
+      "source": "jbb",
+      "row_index": 130,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-131",
+      "source": "jbb",
+      "row_index": 131,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-132",
+      "source": "jbb",
+      "row_index": 132,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-133",
+      "source": "jbb",
+      "row_index": 133,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-134",
+      "source": "jbb",
+      "row_index": 134,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-135",
+      "source": "jbb",
+      "row_index": 135,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-136",
+      "source": "jbb",
+      "row_index": 136,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-137",
+      "source": "jbb",
+      "row_index": 137,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-138",
+      "source": "jbb",
+      "row_index": 138,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-139",
+      "source": "jbb",
+      "row_index": 139,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-harmful-140",
+      "source": "jbb",
+      "row_index": 140,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-141",
+      "source": "jbb",
+      "row_index": 141,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-142",
+      "source": "jbb",
+      "row_index": 142,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-143",
+      "source": "jbb",
+      "row_index": 143,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-144",
+      "source": "jbb",
+      "row_index": 144,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-145",
+      "source": "jbb",
+      "row_index": 145,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-146",
+      "source": "jbb",
+      "row_index": 146,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-147",
+      "source": "jbb",
+      "row_index": 147,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-148",
+      "source": "jbb",
+      "row_index": 148,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-149",
+      "source": "jbb",
+      "row_index": 149,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-harmful-150",
+      "source": "jbb",
+      "row_index": 150,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-151",
+      "source": "jbb",
+      "row_index": 151,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-152",
+      "source": "jbb",
+      "row_index": 152,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-153",
+      "source": "jbb",
+      "row_index": 153,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-154",
+      "source": "jbb",
+      "row_index": 154,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-155",
+      "source": "jbb",
+      "row_index": 155,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-156",
+      "source": "jbb",
+      "row_index": 156,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-157",
+      "source": "jbb",
+      "row_index": 157,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-158",
+      "source": "jbb",
+      "row_index": 158,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-159",
+      "source": "jbb",
+      "row_index": 159,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-harmful-160",
+      "source": "jbb",
+      "row_index": 160,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-161",
+      "source": "jbb",
+      "row_index": 161,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-162",
+      "source": "jbb",
+      "row_index": 162,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-163",
+      "source": "jbb",
+      "row_index": 163,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-164",
+      "source": "jbb",
+      "row_index": 164,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-165",
+      "source": "jbb",
+      "row_index": 165,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-166",
+      "source": "jbb",
+      "row_index": 166,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-167",
+      "source": "jbb",
+      "row_index": 167,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-168",
+      "source": "jbb",
+      "row_index": 168,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-169",
+      "source": "jbb",
+      "row_index": 169,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-harmful-170",
+      "source": "jbb",
+      "row_index": 170,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-171",
+      "source": "jbb",
+      "row_index": 171,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-172",
+      "source": "jbb",
+      "row_index": 172,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-173",
+      "source": "jbb",
+      "row_index": 173,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-174",
+      "source": "jbb",
+      "row_index": 174,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-175",
+      "source": "jbb",
+      "row_index": 175,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-176",
+      "source": "jbb",
+      "row_index": 176,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-177",
+      "source": "jbb",
+      "row_index": 177,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-178",
+      "source": "jbb",
+      "row_index": 178,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-179",
+      "source": "jbb",
+      "row_index": 179,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-harmful-180",
+      "source": "jbb",
+      "row_index": 180,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-181",
+      "source": "jbb",
+      "row_index": 181,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-182",
+      "source": "jbb",
+      "row_index": 182,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-183",
+      "source": "jbb",
+      "row_index": 183,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-184",
+      "source": "jbb",
+      "row_index": 184,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-185",
+      "source": "jbb",
+      "row_index": 185,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-186",
+      "source": "jbb",
+      "row_index": 186,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-187",
+      "source": "jbb",
+      "row_index": 187,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-188",
+      "source": "jbb",
+      "row_index": 188,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-189",
+      "source": "jbb",
+      "row_index": 189,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-harmful-190",
+      "source": "jbb",
+      "row_index": 190,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-191",
+      "source": "jbb",
+      "row_index": 191,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-192",
+      "source": "jbb",
+      "row_index": 192,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-193",
+      "source": "jbb",
+      "row_index": 193,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-194",
+      "source": "jbb",
+      "row_index": 194,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-195",
+      "source": "jbb",
+      "row_index": 195,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-196",
+      "source": "jbb",
+      "row_index": 196,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-197",
+      "source": "jbb",
+      "row_index": 197,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-198",
+      "source": "jbb",
+      "row_index": 198,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-harmful-199",
+      "source": "jbb",
+      "row_index": 199,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "wild-0012",
+      "source": "wild",
+      "row_index": 12,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0042",
+      "source": "wild",
+      "row_index": 42,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0055",
+      "source": "wild",
+      "row_index": 55,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0063",
+      "source": "wild",
+      "row_index": 63,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0074",
+      "source": "wild",
+      "row_index": 74,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0077",
+      "source": "wild",
+      "row_index": 77,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0079",
+      "source": "wild",
+      "row_index": 79,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0080",
+      "source": "wild",
+      "row_index": 80,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0084",
+      "source": "wild",
+      "row_index": 84,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0087",
+      "source": "wild",
+      "row_index": 87,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0098",
+      "source": "wild",
+      "row_index": 98,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0099",
+      "source": "wild",
+      "row_index": 99,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0109",
+      "source": "wild",
+      "row_index": 109,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0116",
+      "source": "wild",
+      "row_index": 116,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0134",
+      "source": "wild",
+      "row_index": 134,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0163",
+      "source": "wild",
+      "row_index": 163,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0171",
+      "source": "wild",
+      "row_index": 171,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0187",
+      "source": "wild",
+      "row_index": 187,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0191",
+      "source": "wild",
+      "row_index": 191,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0193",
+      "source": "wild",
+      "row_index": 193,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0199",
+      "source": "wild",
+      "row_index": 199,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0214",
+      "source": "wild",
+      "row_index": 214,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0215",
+      "source": "wild",
+      "row_index": 215,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0252",
+      "source": "wild",
+      "row_index": 252,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0260",
+      "source": "wild",
+      "row_index": 260,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0329",
+      "source": "wild",
+      "row_index": 329,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0337",
+      "source": "wild",
+      "row_index": 337,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0356",
+      "source": "wild",
+      "row_index": 356,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0371",
+      "source": "wild",
+      "row_index": 371,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0413",
+      "source": "wild",
+      "row_index": 413,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0416",
+      "source": "wild",
+      "row_index": 416,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0419",
+      "source": "wild",
+      "row_index": 419,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0424",
+      "source": "wild",
+      "row_index": 424,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0433",
+      "source": "wild",
+      "row_index": 433,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0446",
+      "source": "wild",
+      "row_index": 446,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0459",
+      "source": "wild",
+      "row_index": 459,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0467",
+      "source": "wild",
+      "row_index": 467,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0470",
+      "source": "wild",
+      "row_index": 470,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0531",
+      "source": "wild",
+      "row_index": 531,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0553",
+      "source": "wild",
+      "row_index": 553,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0554",
+      "source": "wild",
+      "row_index": 554,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0574",
+      "source": "wild",
+      "row_index": 574,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0594",
+      "source": "wild",
+      "row_index": 594,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0598",
+      "source": "wild",
+      "row_index": 598,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0610",
+      "source": "wild",
+      "row_index": 610,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0644",
+      "source": "wild",
+      "row_index": 644,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0647",
+      "source": "wild",
+      "row_index": 647,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0660",
+      "source": "wild",
+      "row_index": 660,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-0678",
+      "source": "wild",
+      "row_index": 678,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0779",
+      "source": "wild",
+      "row_index": 779,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0781",
+      "source": "wild",
+      "row_index": 781,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0786",
+      "source": "wild",
+      "row_index": 786,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0796",
+      "source": "wild",
+      "row_index": 796,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0809",
+      "source": "wild",
+      "row_index": 809,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0810",
+      "source": "wild",
+      "row_index": 810,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0812",
+      "source": "wild",
+      "row_index": 812,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0813",
+      "source": "wild",
+      "row_index": 813,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0831",
+      "source": "wild",
+      "row_index": 831,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0832",
+      "source": "wild",
+      "row_index": 832,
+      "tags": {
+        "platform": "discord"
+      }
+    },
+    {
+      "id": "wild-0864",
+      "source": "wild",
+      "row_index": 864,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0871",
+      "source": "wild",
+      "row_index": 871,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0896",
+      "source": "wild",
+      "row_index": 896,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0951",
+      "source": "wild",
+      "row_index": 951,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0974",
+      "source": "wild",
+      "row_index": 974,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0981",
+      "source": "wild",
+      "row_index": 981,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-0998",
+      "source": "wild",
+      "row_index": 998,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-1016",
+      "source": "wild",
+      "row_index": 1016,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-1027",
+      "source": "wild",
+      "row_index": 1027,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-1048",
+      "source": "wild",
+      "row_index": 1048,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-1050",
+      "source": "wild",
+      "row_index": 1050,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-1051",
+      "source": "wild",
+      "row_index": 1051,
+      "tags": {
+        "platform": "reddit"
+      }
+    },
+    {
+      "id": "wild-1067",
+      "source": "wild",
+      "row_index": 1067,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1076",
+      "source": "wild",
+      "row_index": 1076,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1085",
+      "source": "wild",
+      "row_index": 1085,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1130",
+      "source": "wild",
+      "row_index": 1130,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1133",
+      "source": "wild",
+      "row_index": 1133,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1136",
+      "source": "wild",
+      "row_index": 1136,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1137",
+      "source": "wild",
+      "row_index": 1137,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1154",
+      "source": "wild",
+      "row_index": 1154,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1158",
+      "source": "wild",
+      "row_index": 1158,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1164",
+      "source": "wild",
+      "row_index": 1164,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1174",
+      "source": "wild",
+      "row_index": 1174,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1185",
+      "source": "wild",
+      "row_index": 1185,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1187",
+      "source": "wild",
+      "row_index": 1187,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1191",
+      "source": "wild",
+      "row_index": 1191,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1193",
+      "source": "wild",
+      "row_index": 1193,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1202",
+      "source": "wild",
+      "row_index": 1202,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1204",
+      "source": "wild",
+      "row_index": 1204,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1208",
+      "source": "wild",
+      "row_index": 1208,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1209",
+      "source": "wild",
+      "row_index": 1209,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1221",
+      "source": "wild",
+      "row_index": 1221,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1280",
+      "source": "wild",
+      "row_index": 1280,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1313",
+      "source": "wild",
+      "row_index": 1313,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1323",
+      "source": "wild",
+      "row_index": 1323,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1334",
+      "source": "wild",
+      "row_index": 1334,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1352",
+      "source": "wild",
+      "row_index": 1352,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1354",
+      "source": "wild",
+      "row_index": 1354,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1362",
+      "source": "wild",
+      "row_index": 1362,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1367",
+      "source": "wild",
+      "row_index": 1367,
+      "tags": {
+        "platform": "website"
+      }
+    },
+    {
+      "id": "wild-1394",
+      "source": "wild",
+      "row_index": 1394,
+      "tags": {
+        "platform": "website"
+      }
+    }
+  ],
+  "clean": [
+    {
+      "id": "jbb-benign-000",
+      "source": "jbb",
+      "row_index": 0,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-001",
+      "source": "jbb",
+      "row_index": 1,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-002",
+      "source": "jbb",
+      "row_index": 2,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-003",
+      "source": "jbb",
+      "row_index": 3,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-004",
+      "source": "jbb",
+      "row_index": 4,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-005",
+      "source": "jbb",
+      "row_index": 5,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-006",
+      "source": "jbb",
+      "row_index": 6,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-007",
+      "source": "jbb",
+      "row_index": 7,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-008",
+      "source": "jbb",
+      "row_index": 8,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-009",
+      "source": "jbb",
+      "row_index": 9,
+      "tags": {
+        "category": "Harassment/Discrimination"
+      }
+    },
+    {
+      "id": "jbb-benign-010",
+      "source": "jbb",
+      "row_index": 10,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-011",
+      "source": "jbb",
+      "row_index": 11,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-012",
+      "source": "jbb",
+      "row_index": 12,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-013",
+      "source": "jbb",
+      "row_index": 13,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-014",
+      "source": "jbb",
+      "row_index": 14,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-015",
+      "source": "jbb",
+      "row_index": 15,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-016",
+      "source": "jbb",
+      "row_index": 16,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-017",
+      "source": "jbb",
+      "row_index": 17,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-018",
+      "source": "jbb",
+      "row_index": 18,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-019",
+      "source": "jbb",
+      "row_index": 19,
+      "tags": {
+        "category": "Malware/Hacking"
+      }
+    },
+    {
+      "id": "jbb-benign-020",
+      "source": "jbb",
+      "row_index": 20,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-021",
+      "source": "jbb",
+      "row_index": 21,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-022",
+      "source": "jbb",
+      "row_index": 22,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-023",
+      "source": "jbb",
+      "row_index": 23,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-024",
+      "source": "jbb",
+      "row_index": 24,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-025",
+      "source": "jbb",
+      "row_index": 25,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-026",
+      "source": "jbb",
+      "row_index": 26,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-027",
+      "source": "jbb",
+      "row_index": 27,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-028",
+      "source": "jbb",
+      "row_index": 28,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-029",
+      "source": "jbb",
+      "row_index": 29,
+      "tags": {
+        "category": "Physical harm"
+      }
+    },
+    {
+      "id": "jbb-benign-030",
+      "source": "jbb",
+      "row_index": 30,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-031",
+      "source": "jbb",
+      "row_index": 31,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-032",
+      "source": "jbb",
+      "row_index": 32,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-033",
+      "source": "jbb",
+      "row_index": 33,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-034",
+      "source": "jbb",
+      "row_index": 34,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-035",
+      "source": "jbb",
+      "row_index": 35,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-036",
+      "source": "jbb",
+      "row_index": 36,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-037",
+      "source": "jbb",
+      "row_index": 37,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-038",
+      "source": "jbb",
+      "row_index": 38,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-039",
+      "source": "jbb",
+      "row_index": 39,
+      "tags": {
+        "category": "Economic harm"
+      }
+    },
+    {
+      "id": "jbb-benign-040",
+      "source": "jbb",
+      "row_index": 40,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-041",
+      "source": "jbb",
+      "row_index": 41,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-042",
+      "source": "jbb",
+      "row_index": 42,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-043",
+      "source": "jbb",
+      "row_index": 43,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-044",
+      "source": "jbb",
+      "row_index": 44,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-045",
+      "source": "jbb",
+      "row_index": 45,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-046",
+      "source": "jbb",
+      "row_index": 46,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-047",
+      "source": "jbb",
+      "row_index": 47,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-048",
+      "source": "jbb",
+      "row_index": 48,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-049",
+      "source": "jbb",
+      "row_index": 49,
+      "tags": {
+        "category": "Fraud/Deception"
+      }
+    },
+    {
+      "id": "jbb-benign-050",
+      "source": "jbb",
+      "row_index": 50,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-051",
+      "source": "jbb",
+      "row_index": 51,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-052",
+      "source": "jbb",
+      "row_index": 52,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-053",
+      "source": "jbb",
+      "row_index": 53,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-054",
+      "source": "jbb",
+      "row_index": 54,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-055",
+      "source": "jbb",
+      "row_index": 55,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-056",
+      "source": "jbb",
+      "row_index": 56,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-057",
+      "source": "jbb",
+      "row_index": 57,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-058",
+      "source": "jbb",
+      "row_index": 58,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-059",
+      "source": "jbb",
+      "row_index": 59,
+      "tags": {
+        "category": "Disinformation"
+      }
+    },
+    {
+      "id": "jbb-benign-060",
+      "source": "jbb",
+      "row_index": 60,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-061",
+      "source": "jbb",
+      "row_index": 61,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-062",
+      "source": "jbb",
+      "row_index": 62,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-063",
+      "source": "jbb",
+      "row_index": 63,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-064",
+      "source": "jbb",
+      "row_index": 64,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-065",
+      "source": "jbb",
+      "row_index": 65,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-066",
+      "source": "jbb",
+      "row_index": 66,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-067",
+      "source": "jbb",
+      "row_index": 67,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-068",
+      "source": "jbb",
+      "row_index": 68,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-069",
+      "source": "jbb",
+      "row_index": 69,
+      "tags": {
+        "category": "Sexual/Adult content"
+      }
+    },
+    {
+      "id": "jbb-benign-070",
+      "source": "jbb",
+      "row_index": 70,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-071",
+      "source": "jbb",
+      "row_index": 71,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-072",
+      "source": "jbb",
+      "row_index": 72,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-073",
+      "source": "jbb",
+      "row_index": 73,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-074",
+      "source": "jbb",
+      "row_index": 74,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-075",
+      "source": "jbb",
+      "row_index": 75,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-076",
+      "source": "jbb",
+      "row_index": 76,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-077",
+      "source": "jbb",
+      "row_index": 77,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-078",
+      "source": "jbb",
+      "row_index": 78,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-079",
+      "source": "jbb",
+      "row_index": 79,
+      "tags": {
+        "category": "Privacy"
+      }
+    },
+    {
+      "id": "jbb-benign-080",
+      "source": "jbb",
+      "row_index": 80,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-081",
+      "source": "jbb",
+      "row_index": 81,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-082",
+      "source": "jbb",
+      "row_index": 82,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-083",
+      "source": "jbb",
+      "row_index": 83,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-084",
+      "source": "jbb",
+      "row_index": 84,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-085",
+      "source": "jbb",
+      "row_index": 85,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-086",
+      "source": "jbb",
+      "row_index": 86,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-087",
+      "source": "jbb",
+      "row_index": 87,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-088",
+      "source": "jbb",
+      "row_index": 88,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-089",
+      "source": "jbb",
+      "row_index": 89,
+      "tags": {
+        "category": "Expert advice"
+      }
+    },
+    {
+      "id": "jbb-benign-090",
+      "source": "jbb",
+      "row_index": 90,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-091",
+      "source": "jbb",
+      "row_index": 91,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-092",
+      "source": "jbb",
+      "row_index": 92,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-093",
+      "source": "jbb",
+      "row_index": 93,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-094",
+      "source": "jbb",
+      "row_index": 94,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-095",
+      "source": "jbb",
+      "row_index": 95,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-096",
+      "source": "jbb",
+      "row_index": 96,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-097",
+      "source": "jbb",
+      "row_index": 97,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-098",
+      "source": "jbb",
+      "row_index": 98,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "jbb-benign-099",
+      "source": "jbb",
+      "row_index": 99,
+      "tags": {
+        "category": "Government decision-making"
+      }
+    },
+    {
+      "id": "ultrachat-00045",
+      "source": "ultrachat",
+      "row_index": 45,
+      "text_ref": "c3ebd8266b937cc8d6c46cc0965534676f98cdc58477bbc9bf34aa9ce902f68e"
+    },
+    {
+      "id": "ultrachat-00061",
+      "source": "ultrachat",
+      "row_index": 61,
+      "text_ref": "1128ac2ef5f2a412e117f755aeca2ff4d5a21309167df9dc1e57aa02e43dcad0"
+    },
+    {
+      "id": "ultrachat-00189",
+      "source": "ultrachat",
+      "row_index": 189,
+      "text_ref": "ad339f33d8ea31ce40bbda4cd86fa2f13c175d98f33e862a949edf40d81919ff"
+    },
+    {
+      "id": "ultrachat-00420",
+      "source": "ultrachat",
+      "row_index": 420,
+      "text_ref": "779831698b4aabe45e6c2392530fb7bcf3f469d9e7d0e0890f72f8be7e2aec97"
+    },
+    {
+      "id": "ultrachat-00678",
+      "source": "ultrachat",
+      "row_index": 678,
+      "text_ref": "8390369e80dd7c439f371887459033e874025ed842e2a10adc8522dfecd18366"
+    },
+    {
+      "id": "ultrachat-00961",
+      "source": "ultrachat",
+      "row_index": 961,
+      "text_ref": "c5ef4302bdfd5d9bafbaa69f4218521d34535d1006e622aa2094d34421a870ed"
+    },
+    {
+      "id": "ultrachat-01211",
+      "source": "ultrachat",
+      "row_index": 1211,
+      "text_ref": "2e0b044bcfeeca8cecd57ab19af1ce51490fea367b434c0f3b2bb3976d232a0a"
+    },
+    {
+      "id": "ultrachat-01269",
+      "source": "ultrachat",
+      "row_index": 1269,
+      "text_ref": "ee9f56e04ebcf16dc7d293e2ef699c26b1411b1d5e2e87127a8f889abb273bc8"
+    },
+    {
+      "id": "ultrachat-01283",
+      "source": "ultrachat",
+      "row_index": 1283,
+      "text_ref": "89d52d1f938f99e1f0b6de1ffd6c8bb66664da297dfab3c63f1b6b1f0ff6ae58"
+    },
+    {
+      "id": "ultrachat-01320",
+      "source": "ultrachat",
+      "row_index": 1320,
+      "text_ref": "4ac1d917673ff881783918e66ff0e822db1b9cf5ed755fa0bdc024bdd316798d"
+    },
+    {
+      "id": "ultrachat-01433",
+      "source": "ultrachat",
+      "row_index": 1433,
+      "text_ref": "d7a23b44aacc96d2ae3789f5b02d07414ce3505613d6027e315d7a9c11bca732"
+    },
+    {
+      "id": "ultrachat-01530",
+      "source": "ultrachat",
+      "row_index": 1530,
+      "text_ref": "9516e288ab55ac2a94ac5b025da4c2f511a737cbf5cc801df3e14de36557b9b0"
+    },
+    {
+      "id": "ultrachat-01543",
+      "source": "ultrachat",
+      "row_index": 1543,
+      "text_ref": "16891da80a5b8d293f2a55c5305f7978e10d0e4fcbab38b1a9501988b07a716f"
+    },
+    {
+      "id": "ultrachat-01604",
+      "source": "ultrachat",
+      "row_index": 1604,
+      "text_ref": "cec74d64919031a822616a760d97d4451ce5dfa46cb19f7ddf57b2d999a368a0"
+    },
+    {
+      "id": "ultrachat-01644",
+      "source": "ultrachat",
+      "row_index": 1644,
+      "text_ref": "db1969ef8053e0e2751ca0add04a964a27460cc28e7cfe6b292bb5afccda4ed0"
+    },
+    {
+      "id": "ultrachat-01720",
+      "source": "ultrachat",
+      "row_index": 1720,
+      "text_ref": "2f971de54876af6b2a50d8a11b1af1b2c54fc62078863d60e83587e25488c0ed"
+    },
+    {
+      "id": "ultrachat-01743",
+      "source": "ultrachat",
+      "row_index": 1743,
+      "text_ref": "bf715948928276cd71d82cc1d011197e65ddd78328330b91b0dc497827e651cf"
+    },
+    {
+      "id": "ultrachat-01859",
+      "source": "ultrachat",
+      "row_index": 1859,
+      "text_ref": "550aa2aa49677f76497efe2da4c6a46c1e2bae302c2c9de9d6b9dd71ed31fc1d"
+    },
+    {
+      "id": "ultrachat-01862",
+      "source": "ultrachat",
+      "row_index": 1862,
+      "text_ref": "5cba31f90ce7cc62c6a725c06fe727e1c585bdf59c9b417da6ff3d87e0600474"
+    },
+    {
+      "id": "ultrachat-01869",
+      "source": "ultrachat",
+      "row_index": 1869,
+      "text_ref": "45899f56ba8ba31349428ea6be606307f0e28b1cb6b1b76a6314c40eedc638c4"
+    },
+    {
+      "id": "ultrachat-01887",
+      "source": "ultrachat",
+      "row_index": 1887,
+      "text_ref": "b0709ed74644cfcd1c74a384762462d50aeaa41937b751f3c066368e1777707e"
+    },
+    {
+      "id": "ultrachat-02024",
+      "source": "ultrachat",
+      "row_index": 2024,
+      "text_ref": "4c95ce1490a417033fdf586668e7d762992e619fbb81af86ef30c28a568a4d7c"
+    },
+    {
+      "id": "ultrachat-02072",
+      "source": "ultrachat",
+      "row_index": 2072,
+      "text_ref": "afc7c70aff4d23b50b53b5fc5a539f1439487773f4322113602b167e8cf7b039"
+    },
+    {
+      "id": "ultrachat-02358",
+      "source": "ultrachat",
+      "row_index": 2358,
+      "text_ref": "9303ff9959f31a728fb17913963d59eaf4c52f63bcd3e1d8a1bd77ecb0df5e3c"
+    },
+    {
+      "id": "ultrachat-02581",
+      "source": "ultrachat",
+      "row_index": 2581,
+      "text_ref": "1a6a7d9f15711e4706ca1bd51f1f3a96636350394f0ab7c88106eae2862ca95e"
+    },
+    {
+      "id": "ultrachat-02597",
+      "source": "ultrachat",
+      "row_index": 2597,
+      "text_ref": "aee6f6bffd57e6b8b0937f36de410c35a99d138d403507633689b94bcd165420"
+    },
+    {
+      "id": "ultrachat-02718",
+      "source": "ultrachat",
+      "row_index": 2718,
+      "text_ref": "c43eb4f40ac01f9f2ac87ac28d12d8e347860126bfa40f9be7419943fb6c021d"
+    },
+    {
+      "id": "ultrachat-02783",
+      "source": "ultrachat",
+      "row_index": 2783,
+      "text_ref": "a92f164666d4ef5a9e9837ece517051fa66a3fc1ddace0d02487ae8749c9e20c"
+    },
+    {
+      "id": "ultrachat-02803",
+      "source": "ultrachat",
+      "row_index": 2803,
+      "text_ref": "295824086ee767a284064e1d3bbe6e3dcef2ace8338224dcfd40eeabe42f6e4b"
+    },
+    {
+      "id": "ultrachat-02884",
+      "source": "ultrachat",
+      "row_index": 2884,
+      "text_ref": "bb338f08836b7c8fea0044a039c6e5d17a4d0e1950fd4b1345ee84965d94249d"
+    },
+    {
+      "id": "ultrachat-03105",
+      "source": "ultrachat",
+      "row_index": 3105,
+      "text_ref": "9d743c28b69f2239e3a225a1031913c5f125184fedb3ac870e715ea0dc5b5660"
+    },
+    {
+      "id": "ultrachat-03204",
+      "source": "ultrachat",
+      "row_index": 3204,
+      "text_ref": "8453eab1d3449e0c13cd0d6fa7a7f4fb20b166ff0abc3788eeb483936e94a3e4"
+    },
+    {
+      "id": "ultrachat-03425",
+      "source": "ultrachat",
+      "row_index": 3425,
+      "text_ref": "d14cb26108354832024489958127c2f0c59511c05b5a23516494fa7abd142e3b"
+    },
+    {
+      "id": "ultrachat-03550",
+      "source": "ultrachat",
+      "row_index": 3550,
+      "text_ref": "354ba90ed1ba10390d00a4e741d74a3382fdd7d8048d2da078fcb5f00b02f8ae"
+    },
+    {
+      "id": "ultrachat-03662",
+      "source": "ultrachat",
+      "row_index": 3662,
+      "text_ref": "69cd79f20fe3113889024cae73fa1ac3a353551b27aa81697ed6caea6fe6dab2"
+    },
+    {
+      "id": "ultrachat-03695",
+      "source": "ultrachat",
+      "row_index": 3695,
+      "text_ref": "94025c8a9923a14fc87320ddaa08de0ad495f115e15f8acc4390af0f56012d62"
+    },
+    {
+      "id": "ultrachat-03719",
+      "source": "ultrachat",
+      "row_index": 3719,
+      "text_ref": "6ffa77248835603efbe9414fd84ec33eaf72cbdcfd6b339965ec10aa528b02be"
+    },
+    {
+      "id": "ultrachat-03790",
+      "source": "ultrachat",
+      "row_index": 3790,
+      "text_ref": "9446b1de098ddad4ffb32f37f694ff161a918876106c4e1d1d1e4b127375f510"
+    },
+    {
+      "id": "ultrachat-03879",
+      "source": "ultrachat",
+      "row_index": 3879,
+      "text_ref": "0ae540206956b5f34339e6961e99d38fc05c3170d7110a0dc21409690964efcc"
+    },
+    {
+      "id": "ultrachat-04442",
+      "source": "ultrachat",
+      "row_index": 4442,
+      "text_ref": "39210221022d1722b612c34bf4da98e1219fa1b66b5c0c6f4db5b62bdf8f31c8"
+    },
+    {
+      "id": "ultrachat-04852",
+      "source": "ultrachat",
+      "row_index": 4852,
+      "text_ref": "1e3ce48632384ffb22646a622ffe80b1d7edcf9580bc11148baad7e03705d34b"
+    },
+    {
+      "id": "ultrachat-04974",
+      "source": "ultrachat",
+      "row_index": 4974,
+      "text_ref": "080a6202389cb51dbd10d98de8636da8f9e77abf858d8a9d6678e51a7008c581"
+    },
+    {
+      "id": "ultrachat-05011",
+      "source": "ultrachat",
+      "row_index": 5011,
+      "text_ref": "ac8cf4ae0b8005968f4d328c73f9b0d4dae05e522565970392df4893ed81124a"
+    },
+    {
+      "id": "ultrachat-05046",
+      "source": "ultrachat",
+      "row_index": 5046,
+      "text_ref": "1c41c01bb5362c194784093c48371354b36ce0f327bdf11b0822bd8c72aa680c"
+    },
+    {
+      "id": "ultrachat-05105",
+      "source": "ultrachat",
+      "row_index": 5105,
+      "text_ref": "57d7cc76a41891ec94f11a8e77b5cb63e5c75298f711e400e4a59b9b69ddeab7"
+    },
+    {
+      "id": "ultrachat-05310",
+      "source": "ultrachat",
+      "row_index": 5310,
+      "text_ref": "9a5dd3e0a3c981b1c15e0f2abc761614cfd07f2cba78cf502f73773d11444f30"
+    },
+    {
+      "id": "ultrachat-05536",
+      "source": "ultrachat",
+      "row_index": 5536,
+      "text_ref": "326f8aca244a579fb4a6efc8d925bc3750cd53b9db48e76cab8c59ea387e2211"
+    },
+    {
+      "id": "ultrachat-05545",
+      "source": "ultrachat",
+      "row_index": 5545,
+      "text_ref": "1dc4369a46d42adaef28bae8d6f8565fb649cbf00ab0b4f139aec7601ba58446"
+    },
+    {
+      "id": "ultrachat-05564",
+      "source": "ultrachat",
+      "row_index": 5564,
+      "text_ref": "c4c933bc5c8b24df0552622f680ee5d413854849959e6867089d1729956a3698"
+    },
+    {
+      "id": "ultrachat-05606",
+      "source": "ultrachat",
+      "row_index": 5606,
+      "text_ref": "c425871712be4a5b058bf1f32a95519bbe137ce25a65d0de3565b46048185c76"
+    },
+    {
+      "id": "ultrachat-05727",
+      "source": "ultrachat",
+      "row_index": 5727,
+      "text_ref": "1f3076020cc622c5a08c885332592e8c2d24402e263fb9087289adbe3431c544"
+    },
+    {
+      "id": "ultrachat-05948",
+      "source": "ultrachat",
+      "row_index": 5948,
+      "text_ref": "9b14987ac801f72f841666c485e9e6d9bfdea4b61d3ee7ca7047ac81b3c22200"
+    },
+    {
+      "id": "ultrachat-06004",
+      "source": "ultrachat",
+      "row_index": 6004,
+      "text_ref": "b225e15c7e522ac0a52ab6e0e72d03b8a8c755389bfca6182948ce7131ee5756"
+    },
+    {
+      "id": "ultrachat-06125",
+      "source": "ultrachat",
+      "row_index": 6125,
+      "text_ref": "1fd9551f3a269481dd25e087ef23d73ce5cad04d793889cdddeeee9f9ac8842a"
+    },
+    {
+      "id": "ultrachat-06222",
+      "source": "ultrachat",
+      "row_index": 6222,
+      "text_ref": "43ae4e4043f34da40e8db402f405874e5ce33c95316e64583c4f2fd2400b8e75"
+    },
+    {
+      "id": "ultrachat-06283",
+      "source": "ultrachat",
+      "row_index": 6283,
+      "text_ref": "9a5e3dc50c5e97a6685821634341f9bdefb7f2e9117af46674a3d6053a25654b"
+    },
+    {
+      "id": "ultrachat-06292",
+      "source": "ultrachat",
+      "row_index": 6292,
+      "text_ref": "814961f7489867c87a56d4b8c183113e2835a57a1ba7f2c47a911528ced42f8b"
+    },
+    {
+      "id": "ultrachat-06295",
+      "source": "ultrachat",
+      "row_index": 6295,
+      "text_ref": "bd1fdc252a4b28ba4aa75a6249144cb9ebe7038c1dbee1432768963be0577fc0"
+    },
+    {
+      "id": "ultrachat-06509",
+      "source": "ultrachat",
+      "row_index": 6509,
+      "text_ref": "e6f418bcbec856cbcd288d6ca18c20410a7bc54e6fc974f68175a98dae34d627"
+    },
+    {
+      "id": "ultrachat-06676",
+      "source": "ultrachat",
+      "row_index": 6676,
+      "text_ref": "068d13b47c4686d8ea77dc51cb0255f826a781fcb775e7da945c5d4634a5b0ec"
+    },
+    {
+      "id": "ultrachat-07016",
+      "source": "ultrachat",
+      "row_index": 7016,
+      "text_ref": "51095e6d27b8f3de27d9b90f3cc6bcf01927194f6c2ebdf1efe17f9409b9181e"
+    },
+    {
+      "id": "ultrachat-07156",
+      "source": "ultrachat",
+      "row_index": 7156,
+      "text_ref": "a0ac0eb38272e21dcf500ac0a4f27335443741709f86113767a2967b0f4276d4"
+    },
+    {
+      "id": "ultrachat-07356",
+      "source": "ultrachat",
+      "row_index": 7356,
+      "text_ref": "8c6621c13abdc2cb53207574e47aa778dc9624010ea33429fa5ce2e8f8e4ca13"
+    },
+    {
+      "id": "ultrachat-07361",
+      "source": "ultrachat",
+      "row_index": 7361,
+      "text_ref": "2292c4f39cd8859e2524530b881214a6e5bd33c9a69aa13e5c4f10515c7e12a6"
+    },
+    {
+      "id": "ultrachat-07365",
+      "source": "ultrachat",
+      "row_index": 7365,
+      "text_ref": "4fc8229ee5fa44fdba5cb01af28ed9a717a9c51623198f6086a5345818ae8726"
+    },
+    {
+      "id": "ultrachat-07462",
+      "source": "ultrachat",
+      "row_index": 7462,
+      "text_ref": "83010c0173fee7d41d32488c9ebc042af6131e1048b77e92a9610acf71856327"
+    },
+    {
+      "id": "ultrachat-07687",
+      "source": "ultrachat",
+      "row_index": 7687,
+      "text_ref": "b1adc2a688bac984aff52f5886205dda477f926b91db3dc1874b79b5dc340bbb"
+    },
+    {
+      "id": "ultrachat-07830",
+      "source": "ultrachat",
+      "row_index": 7830,
+      "text_ref": "f929417d4dc180cfa9451441e7c44f69d8ad168422aaa11b0e46e6ff154c6bc2"
+    },
+    {
+      "id": "ultrachat-07873",
+      "source": "ultrachat",
+      "row_index": 7873,
+      "text_ref": "020b8d28bedc954f1aa3ff7f5fa7c694272f1fc8374cbc333e2b2ca78fe389c4"
+    },
+    {
+      "id": "ultrachat-08252",
+      "source": "ultrachat",
+      "row_index": 8252,
+      "text_ref": "c23381ffe832fc46790dc01b4aeca3a15d1a6d92d23d469e756b3173274befbe"
+    },
+    {
+      "id": "ultrachat-08320",
+      "source": "ultrachat",
+      "row_index": 8320,
+      "text_ref": "cb8483bca48bfbec72d3af1b7dc98614ed3bf4f4df248f9b7d3657d92d33f166"
+    },
+    {
+      "id": "ultrachat-08343",
+      "source": "ultrachat",
+      "row_index": 8343,
+      "text_ref": "67dfd8e37abeba8d0994e667bfce9a99a4ca473c2e8cd0a2a477baf2e30175cf"
+    },
+    {
+      "id": "ultrachat-08352",
+      "source": "ultrachat",
+      "row_index": 8352,
+      "text_ref": "44a73d63656d10b5977df50b11b50498b0456f6f8f13fe54882a9473baa1c35b"
+    },
+    {
+      "id": "ultrachat-08399",
+      "source": "ultrachat",
+      "row_index": 8399,
+      "text_ref": "0bd1083390b0714b1d05b8263ac20a96e121681a030edb30f20ad83300035851"
+    },
+    {
+      "id": "ultrachat-08482",
+      "source": "ultrachat",
+      "row_index": 8482,
+      "text_ref": "ff40e62c963b933db2ec5e177b0bb7b858521a746f31d4db13922e3f4a6a2afa"
+    },
+    {
+      "id": "ultrachat-08492",
+      "source": "ultrachat",
+      "row_index": 8492,
+      "text_ref": "4840bd990f81968ebb5da7b1a2f4591d9a09f93864061f76e90e093a73ea1db4"
+    },
+    {
+      "id": "ultrachat-08550",
+      "source": "ultrachat",
+      "row_index": 8550,
+      "text_ref": "a0dd2eb2ffc053141545797ad0386cfb7ffdc7d6953a0a95f509298dbd9d9a67"
+    },
+    {
+      "id": "ultrachat-09194",
+      "source": "ultrachat",
+      "row_index": 9194,
+      "text_ref": "917a8937811f6c623135a0fcdaa30d45e52d9015c1510d75f8fa4cec20550f1b"
+    },
+    {
+      "id": "ultrachat-09197",
+      "source": "ultrachat",
+      "row_index": 9197,
+      "text_ref": "dcea40a6a7b604f4433d12b36249c13f582a4153fa3b7a2a76b00f1ad3c98e06"
+    },
+    {
+      "id": "ultrachat-09468",
+      "source": "ultrachat",
+      "row_index": 9468,
+      "text_ref": "0f35e769e8c3aace6586a39b62d3a3d6a55c8a663061a97567783f614ef30d1f"
+    },
+    {
+      "id": "ultrachat-09537",
+      "source": "ultrachat",
+      "row_index": 9537,
+      "text_ref": "97ecd257932e2fe912984bf3aa21fd64ff19b068549c1a07caa7308bed07e475"
+    },
+    {
+      "id": "ultrachat-09604",
+      "source": "ultrachat",
+      "row_index": 9604,
+      "text_ref": "fb1a8d78d987a2f2cad731da01a80be00b2aac5b3462f6b9ce72e5841c541476"
+    },
+    {
+      "id": "ultrachat-09824",
+      "source": "ultrachat",
+      "row_index": 9824,
+      "text_ref": "37fd3bbe4fa3aba017fa22180335a6d6e4cb8e326de1669af384afc25bf0478b"
+    },
+    {
+      "id": "ultrachat-10033",
+      "source": "ultrachat",
+      "row_index": 10033,
+      "text_ref": "ad82d228968d0b340dcf9efa9d889b6e65df3363c44d6d75f6b80e14cdc6456c"
+    },
+    {
+      "id": "ultrachat-10104",
+      "source": "ultrachat",
+      "row_index": 10104,
+      "text_ref": "3c54d75e6581d396e57dbcff1bcf442af5e594e42f4fe3b0f1e18cbbe71e8dc2"
+    },
+    {
+      "id": "ultrachat-10691",
+      "source": "ultrachat",
+      "row_index": 10691,
+      "text_ref": "1963b33f188db61631d84d7639262744cf9d684e0e3db77bdf82ad42cb0ced9b"
+    },
+    {
+      "id": "ultrachat-11246",
+      "source": "ultrachat",
+      "row_index": 11246,
+      "text_ref": "be1bf6f8e175120a6804c710d44c62836c231161889ff2cf4c3b406b16be1355"
+    },
+    {
+      "id": "ultrachat-11278",
+      "source": "ultrachat",
+      "row_index": 11278,
+      "text_ref": "264d33d88efabb925ca0d4cac5e9db26c27cf49118bca6c14b882746dd7ce6dc"
+    },
+    {
+      "id": "ultrachat-11336",
+      "source": "ultrachat",
+      "row_index": 11336,
+      "text_ref": "1ae77bdb6ce65e045dbf73e278775a73b8f816245b810996881a01f76ccd6079"
+    },
+    {
+      "id": "ultrachat-11348",
+      "source": "ultrachat",
+      "row_index": 11348,
+      "text_ref": "c18fba0040cd5f9aae112aee4ddebd9b14f45686b64648d40e34283c660a8a3d"
+    },
+    {
+      "id": "ultrachat-11433",
+      "source": "ultrachat",
+      "row_index": 11433,
+      "text_ref": "62709433dfdaa982db0a92c6ae377d9e50565f1dad255c54abaf42cc67e1ea3c"
+    },
+    {
+      "id": "ultrachat-11556",
+      "source": "ultrachat",
+      "row_index": 11556,
+      "text_ref": "a347afbda985a1cb4ae5e98b79b906dc93c73ce3324edf26bb73c4b1ac0f9552"
+    },
+    {
+      "id": "ultrachat-11751",
+      "source": "ultrachat",
+      "row_index": 11751,
+      "text_ref": "fde22652b6c64afea05d51ba60ed102bfaffae28a15324ca2d94588b3395b82d"
+    },
+    {
+      "id": "ultrachat-11912",
+      "source": "ultrachat",
+      "row_index": 11912,
+      "text_ref": "e23a6c07c3886a33c0e50ae8940bff01b5c0d365df5750d4ff3fe017a78c1b9c"
+    },
+    {
+      "id": "ultrachat-12285",
+      "source": "ultrachat",
+      "row_index": 12285,
+      "text_ref": "782e0e469e64f02754bd89041d23450592a826f1f98d61adc5e366efbd1c9d2b"
+    },
+    {
+      "id": "ultrachat-12374",
+      "source": "ultrachat",
+      "row_index": 12374,
+      "text_ref": "e7e81a72deb4294935c54a3ddb9d96d9ed4aa4c63870e38cea5f759214218671"
+    },
+    {
+      "id": "ultrachat-12519",
+      "source": "ultrachat",
+      "row_index": 12519,
+      "text_ref": "91295ee8b04516bbefdc8cb6b7d188a1b2a93b28ba56493a65396c4f6cacfebd"
+    },
+    {
+      "id": "ultrachat-12523",
+      "source": "ultrachat",
+      "row_index": 12523,
+      "text_ref": "79e3d951bfeebbd3b1375cbc6c948f84fded9abf07869219f7590f110229312b"
+    },
+    {
+      "id": "ultrachat-13046",
+      "source": "ultrachat",
+      "row_index": 13046,
+      "text_ref": "4760ddad517da52f5594f5bfcc381a7667b4ed4a13d3020b5739d0860f060982"
+    },
+    {
+      "id": "ultrachat-13156",
+      "source": "ultrachat",
+      "row_index": 13156,
+      "text_ref": "657cca1cfaea18cd3a1e7917c5674c52d9a3ce4cafc5ccece12458fc05d468c2"
+    },
+    {
+      "id": "ultrachat-13231",
+      "source": "ultrachat",
+      "row_index": 13231,
+      "text_ref": "d5ff93b69649b83ef0a7ede49310784a1db04dae8a85b27ec527e935431a96c4"
+    },
+    {
+      "id": "ultrachat-13366",
+      "source": "ultrachat",
+      "row_index": 13366,
+      "text_ref": "96a4a10da284d3cbd1259f267e19077d34aeb4786fa9fedfd7d530e125226b4c"
+    },
+    {
+      "id": "ultrachat-13468",
+      "source": "ultrachat",
+      "row_index": 13468,
+      "text_ref": "d63a7e354a5be1ba525d5a93f59935f8ef4c36a411fa1f82f2df1cd979c5d704"
+    },
+    {
+      "id": "ultrachat-13575",
+      "source": "ultrachat",
+      "row_index": 13575,
+      "text_ref": "7a56575b9511da9a141b0f1152211019f2f17d6a18018cfec6bec18d47bc0913"
+    },
+    {
+      "id": "ultrachat-13583",
+      "source": "ultrachat",
+      "row_index": 13583,
+      "text_ref": "70db05c9ed535e1b78a3cc50be5cecfaf8ee269b92e48a80895fd4c00accd00a"
+    },
+    {
+      "id": "ultrachat-13858",
+      "source": "ultrachat",
+      "row_index": 13858,
+      "text_ref": "b0367044cd9574143c695521dfd7e0516512410c314343259cdfefc96462488d"
+    },
+    {
+      "id": "ultrachat-14098",
+      "source": "ultrachat",
+      "row_index": 14098,
+      "text_ref": "0ef37306c031802f029fd371a9597fdd61204d6c8c6789e702ae0f22e9adec21"
+    },
+    {
+      "id": "ultrachat-14155",
+      "source": "ultrachat",
+      "row_index": 14155,
+      "text_ref": "e7139de4d956ea2c9b8684ef94d38dde0aefe9fe1b029ba8a0071e6612196b2f"
+    },
+    {
+      "id": "ultrachat-14322",
+      "source": "ultrachat",
+      "row_index": 14322,
+      "text_ref": "ec7df87647681de120d57d7aabbd78ffb61366a8298b2909b4c5fc6a9e9ebb1a"
+    },
+    {
+      "id": "ultrachat-14471",
+      "source": "ultrachat",
+      "row_index": 14471,
+      "text_ref": "5bd0a14ea21118f24e41ea4af6141af998b9836825d8183ec9316d10f4015553"
+    },
+    {
+      "id": "ultrachat-14591",
+      "source": "ultrachat",
+      "row_index": 14591,
+      "text_ref": "b7f1c847f61e35f59e8d8d503a289d75bbd92618ca0d6b932cb9dd53eb6618ad"
+    },
+    {
+      "id": "ultrachat-14832",
+      "source": "ultrachat",
+      "row_index": 14832,
+      "text_ref": "edd648632d42d3a8b99003b41c32136c881cf5d8f7890032e3afbe3446353fe1"
+    },
+    {
+      "id": "ultrachat-14901",
+      "source": "ultrachat",
+      "row_index": 14901,
+      "text_ref": "a52bad1d3920a302b0ab586810fc904971dd600cf5e957dbd6b44c7e8af3d4e1"
+    },
+    {
+      "id": "ultrachat-14924",
+      "source": "ultrachat",
+      "row_index": 14924,
+      "text_ref": "26ca2e2f1fea79c70d1ff3d848811e8e6b84c8d96926053895dde70c41a546c4"
+    },
+    {
+      "id": "ultrachat-15008",
+      "source": "ultrachat",
+      "row_index": 15008,
+      "text_ref": "f718b8f7de2255c694d573e2998d4ded19e24d71202985704c244d7248cc289a"
+    },
+    {
+      "id": "ultrachat-15148",
+      "source": "ultrachat",
+      "row_index": 15148,
+      "text_ref": "9cae32beac32c798385bce6b9569d024cd434458d216303c2a400fc2c0eaa1c8"
+    },
+    {
+      "id": "ultrachat-15262",
+      "source": "ultrachat",
+      "row_index": 15262,
+      "text_ref": "15c399f800338709a30c05cad70d2b8f432d03c6cbf4663529cc3bb283a65de9"
+    },
+    {
+      "id": "ultrachat-15532",
+      "source": "ultrachat",
+      "row_index": 15532,
+      "text_ref": "9750f5a80944b783875e5aaa4b8622e6c05f2cab0ccaefd8b1a6ddf60e64e263"
+    },
+    {
+      "id": "ultrachat-15762",
+      "source": "ultrachat",
+      "row_index": 15762,
+      "text_ref": "05efadb79fbe6b7e4597a7e341ee553930a5340721b0a87d53c790d73df18df2"
+    },
+    {
+      "id": "ultrachat-15852",
+      "source": "ultrachat",
+      "row_index": 15852,
+      "text_ref": "990bbdd815efa5f07be654ce5c62d3fdacee7a66289ab1a9ab66b65f97da1da0"
+    },
+    {
+      "id": "ultrachat-16056",
+      "source": "ultrachat",
+      "row_index": 16056,
+      "text_ref": "f6ed7c68597842700ac264e2535d69dcf3125bbc9a932a742ca26d07e32755b7"
+    },
+    {
+      "id": "ultrachat-16105",
+      "source": "ultrachat",
+      "row_index": 16105,
+      "text_ref": "fe75ddf8c99354645a9ca69015650e7de6ece641c230995b54fda09053b86c9b"
+    },
+    {
+      "id": "ultrachat-16170",
+      "source": "ultrachat",
+      "row_index": 16170,
+      "text_ref": "b8164f10ee4c05961fd5d6b3879431367b776a9f649d51697d307b98a849af4d"
+    },
+    {
+      "id": "ultrachat-16191",
+      "source": "ultrachat",
+      "row_index": 16191,
+      "text_ref": "33b0cc307b871133d5f203baf04cae5e278268baa86eb5cf739a44f71f33b091"
+    },
+    {
+      "id": "ultrachat-16276",
+      "source": "ultrachat",
+      "row_index": 16276,
+      "text_ref": "004dd952eea32d3449b4b9118b64bd30bb5bbfd7b50b7789cbfe2ee044215592"
+    },
+    {
+      "id": "ultrachat-16289",
+      "source": "ultrachat",
+      "row_index": 16289,
+      "text_ref": "9cb09004c1014520a15600b07e6437c2af8d39f2b5137c6115b7282754aea962"
+    },
+    {
+      "id": "ultrachat-16294",
+      "source": "ultrachat",
+      "row_index": 16294,
+      "text_ref": "f1911d108d901670d404a567575c841e63d91c2ec7781164d9d85679fb8a0113"
+    },
+    {
+      "id": "ultrachat-16427",
+      "source": "ultrachat",
+      "row_index": 16427,
+      "text_ref": "374eeaa481259640673f4d77b833f5091e52b5463098a0d2f93f5fdca878a58f"
+    },
+    {
+      "id": "ultrachat-16436",
+      "source": "ultrachat",
+      "row_index": 16436,
+      "text_ref": "94b394bdc149c5f322f99e75bfe77ee67cc35befd0cf90de043d9a8b74196a47"
+    },
+    {
+      "id": "ultrachat-16451",
+      "source": "ultrachat",
+      "row_index": 16451,
+      "text_ref": "9924bb61d219b361bcbb1903f0c34df83c772d57ab28c607e9e4e8c2e68166e0"
+    },
+    {
+      "id": "ultrachat-16551",
+      "source": "ultrachat",
+      "row_index": 16551,
+      "text_ref": "e01a9d6fb25c97c9a43f07c5d1fe3493fd511a7bf49563de56af07a209decf7c"
+    },
+    {
+      "id": "ultrachat-16552",
+      "source": "ultrachat",
+      "row_index": 16552,
+      "text_ref": "b30cd8ab8c025be31e074aa4672ad59d70a434661645331c86e8c55a6f581c90"
+    },
+    {
+      "id": "ultrachat-16729",
+      "source": "ultrachat",
+      "row_index": 16729,
+      "text_ref": "3ad60347510607974a6f78a6b17caf8744601d1a75bccf2fa158d2dc46857573"
+    },
+    {
+      "id": "ultrachat-17242",
+      "source": "ultrachat",
+      "row_index": 17242,
+      "text_ref": "86747c6fa3861f5c015f30e3e456ebc9243ab6db67a4af3e86d87860e88fb715"
+    },
+    {
+      "id": "ultrachat-17255",
+      "source": "ultrachat",
+      "row_index": 17255,
+      "text_ref": "6eba66975543bf429b3fdc73b20726eb346a402fb1b6946e501057ed03d7fc3c"
+    },
+    {
+      "id": "ultrachat-17328",
+      "source": "ultrachat",
+      "row_index": 17328,
+      "text_ref": "b62d6cd1adc225e3eb6949480ec30cfd564e70c6dfab23b6b7575c3c94d8aa47"
+    },
+    {
+      "id": "ultrachat-17686",
+      "source": "ultrachat",
+      "row_index": 17686,
+      "text_ref": "c5a506ef5292b98d66f0892179cd4682ba33ed2356ad95cfdac9c2ea422c4eee"
+    },
+    {
+      "id": "ultrachat-17701",
+      "source": "ultrachat",
+      "row_index": 17701,
+      "text_ref": "f5b4cae2301d40d8c171b518a004108beae91c31838b6998f695a8b3febd1d58"
+    },
+    {
+      "id": "ultrachat-17911",
+      "source": "ultrachat",
+      "row_index": 17911,
+      "text_ref": "7b71577d4fc6756b5912e50360b59fd062616ce28c88744d3166de24d5e65613"
+    },
+    {
+      "id": "ultrachat-18050",
+      "source": "ultrachat",
+      "row_index": 18050,
+      "text_ref": "39367a460b769929442e2565c246a9e577fe56044c945a64b3802f4e9af72681"
+    },
+    {
+      "id": "ultrachat-18191",
+      "source": "ultrachat",
+      "row_index": 18191,
+      "text_ref": "1320200861b26002be5002b2bea8bc4ba8a981540229a115580046c832f42aa0"
+    },
+    {
+      "id": "ultrachat-18449",
+      "source": "ultrachat",
+      "row_index": 18449,
+      "text_ref": "97b75722d8444f3705577f358ff480335e53dc4f507659450dca290fe3566b14"
+    },
+    {
+      "id": "ultrachat-18552",
+      "source": "ultrachat",
+      "row_index": 18552,
+      "text_ref": "3d5e8c2dc81a870660710f33fb4c47ce7d0aff4674a1230453b9f5c2ce3fc446"
+    },
+    {
+      "id": "ultrachat-19107",
+      "source": "ultrachat",
+      "row_index": 19107,
+      "text_ref": "ae4468d680978e5dd54bf52fb6403aa4c3218bf4d3283b508bd2063a89c25e52"
+    },
+    {
+      "id": "ultrachat-19159",
+      "source": "ultrachat",
+      "row_index": 19159,
+      "text_ref": "3652b4fe30457c9fb801425ffc55bfaee326ae5a9e8be783ebe5cdf0c1826e5a"
+    },
+    {
+      "id": "ultrachat-19274",
+      "source": "ultrachat",
+      "row_index": 19274,
+      "text_ref": "306ba748d5924cce42fe853c55de58dc4e28016fb539cfa40b51826cfb6c962a"
+    },
+    {
+      "id": "ultrachat-19349",
+      "source": "ultrachat",
+      "row_index": 19349,
+      "text_ref": "78bea7b073fd444ac53b43cc8b2f7154f70fb552cda1ee712d69159209b54ce6"
+    },
+    {
+      "id": "ultrachat-19699",
+      "source": "ultrachat",
+      "row_index": 19699,
+      "text_ref": "6f66ea536e42c1d3eb23d2dcea992ff63ca8bb915aa99bf4fe551ca75d4f9509"
+    },
+    {
+      "id": "ultrachat-20079",
+      "source": "ultrachat",
+      "row_index": 20079,
+      "text_ref": "4f2cf5ea52a80306bbb40615019f032f614b5a444df2278a2548b20796d08721"
+    },
+    {
+      "id": "ultrachat-20207",
+      "source": "ultrachat",
+      "row_index": 20207,
+      "text_ref": "11e8e386d56f8a9f45e4916c7e0a4ef0b0bbd43e4ca9f5bd9f1bc15e3660cbfd"
+    },
+    {
+      "id": "ultrachat-20426",
+      "source": "ultrachat",
+      "row_index": 20426,
+      "text_ref": "9856748baabecd0ae59371b2483325eae11879d97ea11ee03638353e9309da25"
+    },
+    {
+      "id": "ultrachat-20438",
+      "source": "ultrachat",
+      "row_index": 20438,
+      "text_ref": "0acd365ca0a0c287ede90521460e1b5a8e86dd9064c00bf7cf418da29420a58f"
+    },
+    {
+      "id": "ultrachat-20517",
+      "source": "ultrachat",
+      "row_index": 20517,
+      "text_ref": "f9f296e2710961ecbc1ee1dbacb45dd149f63c1f5f699575d36e626af98f8742"
+    },
+    {
+      "id": "ultrachat-20547",
+      "source": "ultrachat",
+      "row_index": 20547,
+      "text_ref": "1673b080660fb85e125f5c03d5134afa01ecf566cdcf47d87b3d9467042e0907"
+    },
+    {
+      "id": "ultrachat-20612",
+      "source": "ultrachat",
+      "row_index": 20612,
+      "text_ref": "d2cf8d8cc9049595aa60e7bbc9d9bd845e7971a3d5312e6aa35ed4a1a984a8a1"
+    },
+    {
+      "id": "ultrachat-20711",
+      "source": "ultrachat",
+      "row_index": 20711,
+      "text_ref": "394c9590c554c393332e5e75ba86f90349ce8c5ecffaf7a731606358b7c7b76c"
+    },
+    {
+      "id": "ultrachat-20725",
+      "source": "ultrachat",
+      "row_index": 20725,
+      "text_ref": "5674dd474e738cac53fc74c6500bcc615118d11485f8aa44dd139ed6e0424940"
+    },
+    {
+      "id": "ultrachat-21033",
+      "source": "ultrachat",
+      "row_index": 21033,
+      "text_ref": "a9d30a9941ab1719c56a0f5694829be686d6c98527c7c1b87dbd9972a6530066"
+    },
+    {
+      "id": "ultrachat-21187",
+      "source": "ultrachat",
+      "row_index": 21187,
+      "text_ref": "6ab12b75f41d808a098312b486dbf8e347502c5278d1658387c3e8182e804b9a"
+    },
+    {
+      "id": "ultrachat-21204",
+      "source": "ultrachat",
+      "row_index": 21204,
+      "text_ref": "ce4f234c4184b54a17d74e9c092e4ed8d4f76f8aa82e26be4e6bfadb3588085d"
+    },
+    {
+      "id": "ultrachat-21454",
+      "source": "ultrachat",
+      "row_index": 21454,
+      "text_ref": "bf4d4693692c927952a043e92684ff37a9b1224c7234489daf2d9a52df21eace"
+    },
+    {
+      "id": "ultrachat-21511",
+      "source": "ultrachat",
+      "row_index": 21511,
+      "text_ref": "c28c870cbe1a8c87dfea33dd52daec1c26d16e2c6ec96e5ac412ecb4c364989c"
+    },
+    {
+      "id": "ultrachat-21763",
+      "source": "ultrachat",
+      "row_index": 21763,
+      "text_ref": "a35ed88e209bce5ab0fbf5d57dcad5380eb15c8205bbd9fad01f924331460f82"
+    },
+    {
+      "id": "ultrachat-22122",
+      "source": "ultrachat",
+      "row_index": 22122,
+      "text_ref": "efe0bbc5d82c734415badfda21c17a967fc6a5350c93d174ca817b05601ccc6e"
+    },
+    {
+      "id": "ultrachat-22190",
+      "source": "ultrachat",
+      "row_index": 22190,
+      "text_ref": "33ecdcde5b8e6fd6fc543e74a87b3ba9a62c60a033362efa4e5637ff63485bd2"
+    },
+    {
+      "id": "ultrachat-22370",
+      "source": "ultrachat",
+      "row_index": 22370,
+      "text_ref": "c7c11663a1c098d411b06a5bd2904a4666c792445327ad9029f2e8c2cee5063a"
+    },
+    {
+      "id": "ultrachat-22613",
+      "source": "ultrachat",
+      "row_index": 22613,
+      "text_ref": "2ec815f775f2ecaee62a5b1aa2fa74a35e47ddd341c4acd84f7be336367a6721"
+    },
+    {
+      "id": "ultrachat-22845",
+      "source": "ultrachat",
+      "row_index": 22845,
+      "text_ref": "188243f492fe7218a73e2023c49b5daa59c888d6c06cf00cd0a2031f5fb88021"
+    },
+    {
+      "id": "ultrachat-22848",
+      "source": "ultrachat",
+      "row_index": 22848,
+      "text_ref": "64d8aff2be5d90452820143a7c929ed570e6eef5bb5651f8986b0414212ae42f"
+    },
+    {
+      "id": "ultrachat-23033",
+      "source": "ultrachat",
+      "row_index": 23033,
+      "text_ref": "6c759dec6022a06ccf0358ccb3512612af4400a2f8dedb41d951dadf8cb9fd95"
+    },
+    {
+      "id": "tricky-001",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-002",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-003",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-004",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-005",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-006",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-007",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-008",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-009",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-010",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-011",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-012",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-013",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-014",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-015",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-016",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-017",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-018",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-019",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-020",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-021",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-022",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-023",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-024",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-025",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-026",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-027",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-028",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-029",
+      "source": "tricky_benign",
+      "row_index": null
+    },
+    {
+      "id": "tricky-030",
+      "source": "tricky_benign",
+      "row_index": null
+    }
+  ]
+}
