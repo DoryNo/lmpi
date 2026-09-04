@@ -8,6 +8,8 @@
 
 **Задача:** Создать базовый FastAPI прокси с поддержкой SSE-стриминга
 
+**Статус:** ✅ done — PR #1
+
 **Scope:**
 - FastAPI app skeleton
 - Эндпоинт `/v1/chat/completions` (POST)
@@ -26,6 +28,8 @@
 
 **Задача:** Модуль нормализации входного текста
 
+**Статус:** ✅ done — PR #2
+
 **Scope:**
 - `normalization/unicode.py` — NFKC, zero-width chars, control chars
 - `normalization/encoding.py` — base64, hex, rot13 decode-and-recheck
@@ -40,6 +44,8 @@
 ## Agent 3: Fast Path Detection
 
 **Задача:** Regex/heuristic движок для известных jailbreak-паттернов
+
+**Статус:** ✅ done — PR #3
 
 **Scope:**
 - `fast_path/patterns.py` — паттерны на:
@@ -60,6 +66,8 @@
 
 **Задача:** Система обнаружения утечки system prompt через canary tokens
 
+**Статус:** ✅ done — PR #5
+
 **Scope:**
 - HMAC-based token generation (per-session secret)
 - Внедрение canary в system prompt при проксификации
@@ -74,6 +82,8 @@
 ## Agent 5: Deep Path (ML Classifier)
 
 **Задача:** Интеграция quantized ML-классификатора через ONNX Runtime
+
+**Статус:** ✅ done — PR #4 *(delivered full-precision ONNX: no quantized export exists upstream — see PLAN.md week 3)*
 
 **Scope:**
 - Загрузка `protectai/deberta-v3-base-prompt-injection` (ONNX)
@@ -91,6 +101,8 @@
 
 **Задача:** Объединение всех модулей в единый pipeline
 
+**Статус:** ✅ done — integrated with the stage PRs (#3–#5); no separate PR
+
 **Scope:**
 - Orchestrator: normalization → fast path → deep path → decision
 - Configurable actions: block / warn / log-only
@@ -105,6 +117,8 @@
 ## Agent 7: Benchmark Framework
 
 **Задача:** Воспроизводимый бенчмарк с frozen eval set
+
+**Статус:** ✅ done — PR #6
 
 **Scope:**
 - Eval dataset curation:
@@ -124,6 +138,8 @@
 ## Agent 8: README + Documentation
 
 **Задача:** Финальный README с честными метриками
+
+**Статус:** ✅ done — PR #7 (README polish, verified quickstart, demo examples, docs consistency, CI)
 
 **Scope:**
 - Что это и зачем (1 абзац)

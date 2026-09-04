@@ -20,7 +20,7 @@ LMPI — lightweight прокси с тремя уровнями защиты:
 
 1. **Ingress Normalization** — детерминированная очистка входного потока (NFKC, zero-width chars, base64/hex/rot13 decode, нейтрализация псевдо-системных разделителей)
 2. **Fast Path** — regex/heuristic паттерны на известные jailbreak-конструкции с минимизацией false positives
-3. **Deep Path** — ML-классификатор (quantized DeBERTa через ONNX Runtime) для сложных случаев
+3. **Deep Path** — ML-классификатор (DeBERTa через ONNX Runtime) для сложных случаев
 
 Плюс **Canary Token Detection** — HMAC-токены в system prompt для обнаружения утечки.
 
