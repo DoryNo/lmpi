@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -26,8 +26,33 @@ DEFAULT_UPSTREAM_URL = "https://api.openai.com"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8080
 DEFAULT_REQUEST_TIMEOUT = 300.0
+DEFAULT_NORMALIZATION_MODE = "rewrite"
 
 ENV_PREFIX = "LMPI_"
+
+# normalization.mode: what to do when the normalization stage finds something.
+NORMALIZATION_MODES = ("rewrite", "block", "log")
+
+_BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
+_BOOL_FALSE = frozenset({"0", "false", "no", "off"})
+
+
+@dataclass(frozen=True)
+class NormalizationSettings:
+    """Ingress normalization stage settings.
+
+    ``mode`` controls the action when the stage finds something:
+    ``rewrite`` (default) rewrites the payload with the cleaned text,
+    ``block`` rejects the request with HTTP 403, ``log`` passes the request
+    unchanged and only logs the findings.
+    """
+
+    mode: str = DEFAULT_NORMALIZATION_MODE
+    unicode: bool = True
+    base64: bool = True
+    hex: bool = True
+    rot13: bool = True
+    delimiters: bool = True
 
 
 @dataclass(frozen=True)
@@ -39,6 +64,9 @@ class Settings:
     port: int = DEFAULT_PORT
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
     config_path: str | None = None
+    normalization: NormalizationSettings = field(
+        default_factory=NormalizationSettings
+    )
 
 
 def _parse_port(value: Any) -> int:
@@ -59,6 +87,27 @@ def _parse_timeout(value: Any) -> float:
     if timeout <= 0:
         raise ValueError(f"request_timeout must be positive, got {timeout}")
     return timeout
+
+
+def _parse_mode(value: Any) -> str:
+    mode = str(value).strip().lower()
+    if mode not in NORMALIZATION_MODES:
+        raise ValueError(
+            f"normalization mode must be one of {', '.join(NORMALIZATION_MODES)}, "
+            f"got {value!r}"
+        )
+    return mode
+
+
+def _parse_bool(value: Any, env_key: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    lowered = str(value).strip().lower()
+    if lowered in _BOOL_TRUE:
+        return True
+    if lowered in _BOOL_FALSE:
+        return False
+    raise ValueError(f"Invalid boolean for {env_key}: {value!r}")
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -103,6 +152,39 @@ def load_settings(
     port = _parse_port(pick("port", DEFAULT_PORT))
     request_timeout = _parse_timeout(pick("request_timeout", DEFAULT_REQUEST_TIMEOUT))
 
+    normalization_section = file_values.get("normalization")
+    if normalization_section is None:
+        normalization_section = {}
+    if not isinstance(normalization_section, dict):
+        raise ValueError(
+            "normalization config section must be a mapping, got "
+            f"{type(normalization_section).__name__}"
+        )
+
+    def norm_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}NORMALIZATION_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if normalization_section.get(key) is not None:
+            return normalization_section[key]
+        return default
+
+    normalization = NormalizationSettings(
+        mode=_parse_mode(norm_pick("mode", DEFAULT_NORMALIZATION_MODE)),
+        unicode=_parse_bool(
+            norm_pick("unicode", True), f"{ENV_PREFIX}NORMALIZATION_UNICODE"
+        ),
+        base64=_parse_bool(
+            norm_pick("base64", True), f"{ENV_PREFIX}NORMALIZATION_BASE64"
+        ),
+        hex=_parse_bool(norm_pick("hex", True), f"{ENV_PREFIX}NORMALIZATION_HEX"),
+        rot13=_parse_bool(norm_pick("rot13", True), f"{ENV_PREFIX}NORMALIZATION_ROT13"),
+        delimiters=_parse_bool(
+            norm_pick("delimiters", True),
+            f"{ENV_PREFIX}NORMALIZATION_DELIMITERS",
+        ),
+    )
+
     if not upstream_url.lower().startswith(("http://", "https://")):
         raise ValueError(
             f"upstream_url must start with http:// or https://, got {upstream_url!r}"
@@ -114,12 +196,15 @@ def load_settings(
         port=port,
         request_timeout=request_timeout,
         config_path=resolved_path,
+        normalization=normalization,
     )
     logger.debug(
-        "Loaded settings: upstream=%s host=%s port=%s timeout=%ss",
+        "Loaded settings: upstream=%s host=%s port=%s timeout=%s "
+        "normalization.mode=%s",
         settings.upstream_url,
         settings.host,
         settings.port,
         settings.request_timeout,
+        settings.normalization.mode,
     )
     return settings

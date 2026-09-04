@@ -33,6 +33,15 @@ Transparent proxy that protects LLM applications from prompt injection and syste
                     └──────────────────┘
 ```
 
+## Ingress Normalization
+
+The first pipeline stage (`src/normalization/`) rewrites every user message before detection runs:
+
+- **Unicode cleanup** — NFKC, zero-width/invisible chars (U+200B, U+FEFF, soft hyphens…), bidi controls and non-whitespace control chars removed, so hidden characters can no longer split keywords or corrupt parsing.
+- **Decode-and-recheck** — base64 / hex blobs are decoded and inlined so later stages see the payload; ROT13 runs are rewritten only when the decode contains a suspicious marker (`ignore`, `jailbreak`, …). Malformed blobs are skipped, never crash.
+- **Delimiter neutralization** — pseudo-system tokens (`<|im_start|>`, `### System`, `[INST]`, line-start `System:` …) are replaced with visibly-escaped markers (`⟦fake-system⟧`), surgically: prose and code like `os.system("ls")` or `### System requirements` are left untouched.
+- Every rewrite is recorded as a structured `Finding`; by default findings are logged and the payload is rewritten (`LMPI_NORMALIZATION_MODE=rewrite`; `block` returns 403, `log` is observe-only).
+
 ## Benchmark Results
 
 > ⚠️ Results will be published after v1 completion. Metrics will include:
@@ -94,6 +103,12 @@ Configuration (env vars override `config.yaml`):
 | `LMPI_HOST` / `LMPI_PORT` | `0.0.0.0` / `8080` | Proxy bind address |
 | `LMPI_REQUEST_TIMEOUT` | `300.0` | Read timeout, seconds |
 | `LMPI_CONFIG_PATH` | — | Path to a YAML config file |
+| `LMPI_NORMALIZATION_MODE` | `rewrite` | Normalization action: `rewrite` / `block` / `log` |
+| `LMPI_NORMALIZATION_UNICODE` | `true` | NFKC + zero-width/bidi/control cleanup |
+| `LMPI_NORMALIZATION_BASE64` | `true` | base64 decode-and-recheck |
+| `LMPI_NORMALIZATION_HEX` | `true` | hex decode-and-recheck |
+| `LMPI_NORMALIZATION_ROT13` | `true` | ROT13 decode (marker-gated) |
+| `LMPI_NORMALIZATION_DELIMITERS` | `true` | Pseudo-system delimiter neutralization |
 
 Run tests (no real network — upstream is mocked):
 
