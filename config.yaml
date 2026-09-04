@@ -1,0 +1,8 @@
+# LMPI proxy configuration.
+# Environment variables (LMPI_*) override these values:
+#   LMPI_UPSTREAM_URL, LMPI_HOST, LMPI_PORT, LMPI_REQUEST_TIMEOUT,
+#   LMPI_CONFIG_PATH (path to this file).
+upstream_url: https://api.openai.com
+host: 0.0.0.0
+port: 8080
+request_timeout: 300.0
