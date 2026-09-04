@@ -1,4 +1,4 @@
-"""Detection pipeline — normalization (stage 1) + fast path (stage 2).
+"""Detection pipeline — normalization (stage 1) + fast path (stage 2) + deep path (stage 3).
 
 The proxy awaits :meth:`DetectionPipeline.process_request` on every chat
 completion request before forwarding it upstream. Current stages:
@@ -13,11 +13,16 @@ completion request before forwarding it upstream. Current stages:
   text, so encoded or obfuscated inputs are seen the way the LLM would see
   them. score >= block threshold → HTTP 403; >= warn threshold → logged,
   still forwarded.
+- Stage 3 — deep path ML classifier (``src.deep_path``): ONNX DeBERTa
+  injection-probability classifier over the **normalized** user text, run
+  only when fast path did not already block (efficiency) and the stage is
+  available + enabled. Same block / warn semantics as stage 2; when the
+  model or onnxruntime is missing the stage degrades gracefully (skipped
+  with a one-time warning).
 
 Later agents add more stages on top:
 
 - Agent 4 — canary token detection
-- Agent 5 — deep path ML classifier (ONNX)
 - Agent 6 — pipeline orchestration (block / warn / log-only)
 
 Note on stage interaction: stage 1 already neutralizes raw special tokens
@@ -32,7 +37,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from ..config import FastPathSettings, NormalizationSettings
+from ..config import DeepPathSettings, FastPathSettings, NormalizationSettings
+from ..deep_path import DeepPathDetector, DeepPathResult
 from ..fast_path import DetectionResult, FastPathDetector
 from ..normalization import normalize
 from ..normalization.types import Finding
@@ -90,13 +96,15 @@ def extract_user_text(payload: dict[str, Any]) -> str:
 
 
 class DetectionPipeline:
-    """Runs stages over a chat completion payload: normalization, then fast path."""
+    """Runs stages over a chat completion payload: normalization, fast path,
+    then the deep path (ML) when configured."""
 
     def __init__(
         self,
         normalization: NormalizationSettings | None = None,
         *,
         fast_path: FastPathSettings | None = None,
+        deep_path_detector: DeepPathDetector | None = None,
     ) -> None:
         self.normalization = normalization or NormalizationSettings()
         self.fast_path: FastPathDetector | None = None
@@ -105,14 +113,27 @@ class DetectionPipeline:
                 block_threshold=fast_path.block_threshold,
                 warn_threshold=fast_path.warn_threshold,
             )
+        # Agent 5 — stage 3: the caller (src.main / tests) builds the
+        # detector from settings, so the pipeline stays decoupled from
+        # onnxruntime. An unusable model degrades to `available=False` and
+        # is skipped with a one-time warning (PLAN.md §3.1).
+        self.deep_path = deep_path_detector
+        if self.deep_path is not None and not self.deep_path.available:
+            logger.warning(
+                "Deep path stage disabled: model backend unavailable "
+                "(download it with scripts/download_model.py or set "
+                "LMPI_DEEP_PATH_ENABLED=false)"
+            )
 
     async def process_request(self, payload: dict[str, Any]) -> PipelineResult:
         """Inspect a chat completion payload and decide pass / block.
 
         Stage 1 normalizes every user-message content, rewrites the payload
         with the cleaned text, and logs the findings. Stage 2 runs the fast
-        path over the *normalized* user text. Depending on the configured
-        stage actions the result can block (403), rewrite, or pass through.
+        path over the *normalized* user text. Stage 3 runs the deep path ML
+        classifier over the same text, only when fast path did not block and
+        the stage is available. Depending on the configured stage actions
+        the result can block (403), rewrite, or pass through.
         """
         messages = payload.get("messages")
         if not isinstance(messages, list):
@@ -159,6 +180,22 @@ class DetectionPipeline:
                     return PipelineResult(action="block", reason=detection.reason)
                 if detection.action == "warn":
                     self._log_detection(detection, level="info")
+
+        # ---------------------------------------------------------------
+        # Stage 3 — deep path (ML classifier, Agent 5). Skipped when fast
+        # path already blocked (a `return` above), when no detector is
+        # configured, or when the backend is unavailable (graceful
+        # degradation). Same block / warn semantics as stage 2.
+        # ---------------------------------------------------------------
+        if self.deep_path is not None and self.deep_path.available:
+            text = extract_user_text({"messages": new_messages})
+            if text.strip():
+                detection = self.deep_path.detect(text)
+                if detection.action == "block":
+                    self._log_deep_detection(detection, level="warning")
+                    return PipelineResult(action="block", reason=detection.reason)
+                if detection.action == "warn":
+                    self._log_deep_detection(detection, level="info")
 
         return result
 
@@ -232,6 +269,22 @@ class DetectionPipeline:
 
     def _log_detection(self, detection: DetectionResult, level: str) -> None:
         """Emit the structured fast-path detection event (block or warn)."""
+        message = json.dumps(
+            detection.log_dict(), ensure_ascii=False, sort_keys=True
+        )
+        if level == "warning":
+            logger.warning("detection event: %s", message)
+        else:
+            logger.info("detection event: %s", message)
+
+    # ------------------------------------------------------------------
+    # Stage 3 helpers (deep path)
+    # ------------------------------------------------------------------
+
+    def _log_deep_detection(
+        self, detection: DeepPathResult, level: str
+    ) -> None:
+        """Emit the structured deep-path detection event (block or warn)."""
         message = json.dumps(
             detection.log_dict(), ensure_ascii=False, sort_keys=True
         )
