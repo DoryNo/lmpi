@@ -230,7 +230,7 @@ PATTERNS: tuple[Pattern, ...] = (
         category="instruction_override",
         weight=WEIGHT_INSTRUCTION_OVERRIDE,
         regex=_compile(
-            r"\bзабудь\s+(?:вс[ёе]|все)\s+(?:что\s+)?(?:было\s+)?"
+            r"\bзабудь\s+(?:вс[ёе]|все)\s*,?\s*(?:что\s+)?(?:было\s+)?"
             r"(?:выше|ранее|до)\b"
             r"|\bзабудь\s+(?:свои|прошлые|предыдущие|начальные)\s+"
             r"(?:инструкции|правила|указания)\b"
@@ -408,7 +408,7 @@ PATTERNS: tuple[Pattern, ...] = (
             r"[^.\n]{0,80}"
             r"\b(?:without|no|zero|ignoring|disregarding|free\s+of)\s+"
             r"(?:any\s+|all\s+|the\s+)?"
-            r"(?:restrictions?|limitations?|filters?|censorship|constraints?|"
+            r"(?:restrictions?|limitations?|limits?|filters?|censorship|constraints?|"
             r"guardrails?|safety\s+(?:rules?|filters?|measures?)|"
             r"moral\s+(?:filters?|constraints?|guidelines?|restrictions?)|"
             r"ethical\s+(?:constraints?|guidelines?|restrictions?|filters?))\b"

@@ -131,7 +131,7 @@ class DetectionPipeline:
         if findings:
             self._log_findings(payload, findings)
 
-        if self.normalization.mode == "block":
+        if findings and self.normalization.mode == "block":
             categories = sorted({finding.category for finding in findings})
             return PipelineResult(
                 action="block",
