@@ -52,11 +52,30 @@ The second pipeline stage (`src/fast_path/`) is a regex/heuristic detector that 
 - **False-positive controls** — word-boundary anchoring, structural gating (a persona switch alone or a restriction-lift phrase alone never scores — e.g. "Write a story where a robot must answer without restrictions" stays clean), benign collocations excluded ("ignore previous test results"), and quoted mentions (`"ignore all previous instructions"` discussed in a security course) demoted to zero weight.
 - **Honest caveat:** all weights are heuristic priors, not measurements — they will be tuned against the frozen benchmark eval set (see Benchmark Results below).
 
+## Deep Path (ML)
+
+The third pipeline stage (`src/deep_path/`) is a neural prompt-injection classifier that runs **only when the fast path did not already block** and on the **normalized** text (stage 1 output):
+
+- **Model** — [`protectai/deberta-v3-base-prompt-injection-v2`](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2), ONNX export, inference via `onnxruntime` + the lightweight `tokenizers` library (no `transformers`/`torch`). The softmax over the 2 logits gives an injection probability in `[0, 1]`; `score ≥ 0.75` → block (HTTP 403), `score ≥ 0.5` → warn (logged, forwarded).
+- **Not fine-tuned by us (honesty note):** this is the *pretrained* classifier as published upstream — LMPI adds zero training data. Its known false-positive patterns and language coverage limits carry over (see its [model card](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2) for the author's benchmarks).
+- **Quantization status:** the upstream repo currently publishes **no** quantized ONNX variant, so the full-precision `model.onnx` (~740 MB) is used; if a `model_quantized.onnx` is present in the model dir, the backend picks it up automatically and logs `quantized: true`.
+- **Enable it** (disabled by default):
+
+  ```bash
+  pip install -r requirements.txt
+  python scripts/download_model.py     # downloads model.onnx + tokenizer into models/ (gitignored)
+  export LMPI_DEEP_PATH_ENABLED=true
+  ```
+
+- **Graceful degradation** — model missing, or `onnxruntime` not installed → the stage is skipped with a one-time warning and the proxy keeps working (stages 1–2 remain active).
+- **Input hygiene & truncation** — text is capped at `LMPI_DEEP_PATH_MAX_CHARS` (default 6000) before classification (capped requests are flagged in the log event), then token-truncated to the model's 512-token training window (standard **first-512** truncation: an injection payload near the end of a >512-token prompt can be missed — known trade-off).
+- **Latency** — every decision event logs `latency_ms` (tokenize + ONNX inference); on CPU, single-text inference is roughly 20–30 ms, feeding the benchmark's per-stage breakdown.
+
 ## Canary Token Detection
 
 The final pipeline stage (`src/canary/`) answers a question the classifier can't: *did the system prompt itself leak?*
 
-- **Injection** — after the pipeline rewrites the payload, a short HMAC-derived audit sentence (`[Internal audit token: LMPI-CANARY-ab12cd34]`) is appended to the system message right before it is sent upstream. Tokens are derived per-request from `HMAC-SHA256(secret, random salt)` — a unique token per request means a leak can be attributed to that request and leaks can't be correlated across requests (per-session tokens would be cheaper but correlate leaks). If no system message is present, none is added (transparency) unless `LMPI_CANARY_ADD_MISSING_SYSTEM=true`.
+- **Injection** — after the pipeline (all stages) rewrites the payload, a short HMAC-derived audit sentence (`[Internal audit token: LMPI-CANARY-ab12cd34]`) is appended to the system message right before it is sent upstream. Tokens are derived per-request from `HMAC-SHA256(secret, random salt)` — a unique token per request means a leak can be attributed to that request and leaks can't be correlated across requests (per-session tokens would be cheaper but correlate leaks). If no system message is present, none is added (transparency) unless `LMPI_CANARY_ADD_MISSING_SYSTEM=true`.
 - **Scanning** — both response bodies and SSE streams are scanned for the exact token. The streaming scanner holds back at most `token_len − 1` bytes so a canary split across chunk boundaries is still caught, without buffering the stream.
 - **Actions** — `redact` (default): the token is replaced with `[REDACTED]` on the way to the client and a structured JSON alert (token fingerprint, not the value) is logged. `block`: non-streaming responses are replaced with a 502 leak-detected error; streaming is terminated with an `lmpi_leak_detected` SSE error event.
 - **Secret** — if `LMPI_CANARY_SECRET` is unset, an ephemeral secret is generated at startup (warning logged; tokens are still unique per request, but restarts can't be compared).
@@ -95,7 +114,11 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 2. Run the proxy (forwards to LMPI_UPSTREAM_URL, default https://api.openai.com)
+# 2. (optional) Download the deep-path ML model, then enable it
+python scripts/download_model.py
+export LMPI_DEEP_PATH_ENABLED=true
+
+# 3. Run the proxy (forwards to LMPI_UPSTREAM_URL, default https://api.openai.com)
 uvicorn src.main:app --host 0.0.0.0 --port 8080
 # ...or let the proxy read LMPI_HOST / LMPI_PORT / LMPI_UPSTREAM_URL itself:
 python -m src.main
@@ -132,6 +155,11 @@ Configuration (env vars override `config.yaml`):
 | `LMPI_FAST_PATH_ENABLED` | `true` | Fast-path regex/heuristic stage on/off |
 | `LMPI_FAST_PATH_BLOCK_THRESHOLD` | `0.75` | Noisy-OR score at/above which requests are blocked |
 | `LMPI_FAST_PATH_WARN_THRESHOLD` | `0.4` | Score at/above which requests are logged (warn) but forwarded |
+| `LMPI_DEEP_PATH_ENABLED` | `false` | Deep-path ML stage on/off (download model first) |
+| `LMPI_DEEP_PATH_MODEL_PATH` | `models/deberta-v3-base-prompt-injection-v2` | Directory with `model.onnx` + `tokenizer.json` |
+| `LMPI_DEEP_PATH_BLOCK_THRESHOLD` | `0.75` | Injection probability at/above which requests are blocked |
+| `LMPI_DEEP_PATH_WARN_THRESHOLD` | `0.5` | Probability at/above which requests are logged (warn) but forwarded |
+| `LMPI_DEEP_PATH_MAX_CHARS` | `6000` | Cap on text length handed to the classifier |
 | `LMPI_CANARY_ENABLED` | `true` | Canary token injection + leak scanning on/off |
 | `LMPI_CANARY_SECRET` | — (ephemeral + warning) | HMAC secret for canary derivation; set in production |
 | `LMPI_CANARY_ACTION` | `redact` | Leak response: `redact` (replace with `[REDACTED]`) / `block` (502 / SSE error) |
@@ -151,6 +179,8 @@ Honest list of what v1 does NOT include:
 - **No tool call firewall** — SSRF/path traversal detection for function calls is not implemented
 - **No DLP filter** — PII/sensitive data detection not included
 - **No fine-tuned model** — using pretrained `deberta-v3-base-prompt-injection`, not optimized for LMPI-specific patterns
+- **Deep path truncation** — the classifier sees only the first 512 tokens (its training window); injection payloads near the end of very long prompts can be missed
+- **No quantized deep-path model** — upstream ships no quantized ONNX export, so the full-precision ~740 MB model is downloaded
 - **No Redis/Prometheus/Grafana** — in-memory state, basic logging only
 - **No Rust/Go port** — pure Python for v1
 - **Single upstream** — no load balancing or failover
@@ -182,6 +212,8 @@ lmpi/
 │   ├── fast_path/           # Regex/heuristic detection
 │   ├── deep_path/           # ML classifier (ONNX)
 │   └── canary/              # Canary token detection
+├── scripts/
+│   └── download_model.py    # Downloads the deep-path ONNX model (gitignored)
 ├── tests/                   # Unit + integration tests
 ├── benchmarks/              # Frozen eval set + runner
 ├── models/                  # Quantized ONNX models

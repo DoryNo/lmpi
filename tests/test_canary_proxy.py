@@ -21,6 +21,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.config import CanarySettings, Settings, load_settings
+from src.detection.pipeline import DetectionPipeline
+from src.deep_path import DeepPathDetector, StubBackend
 from src.main import create_app
 
 from tests.test_proxy import UPSTREAM, _start_loopback_server
@@ -506,3 +508,63 @@ class TestStreamingScan:
             thread.join(timeout=5)
 
         assert state["second"] is True
+
+
+# ---------------------------------------------------------------------------
+# Combined flow: normalization → deep path → canary injection → stream scan
+# ---------------------------------------------------------------------------
+
+
+class TestCombinedPipelineFlow:
+    """Full-stage ordering: rewrite, ML warn, canary injected last, scanned."""
+
+    def test_norm_deep_path_warn_canary_stream(self, caplog) -> None:
+        seen: dict[str, Any] = {}
+        app = create_app(
+            settings=Settings(
+                upstream_url=UPSTREAM,
+                canary=CanarySettings(secret="proxy-canary-secret"),
+            ),
+            transport=httpx.MockTransport(sse_upstream(seen, LAYOUTS["split"])),
+        )
+        stub = StubBackend(scores=(0.4, 0.6))  # warn band (≥ 0.5, < 0.75)
+        app.state.pipeline = DetectionPipeline(
+            app.state.settings.normalization,
+            fast_path=app.state.settings.fast_path,
+            deep_path_detector=DeepPathDetector(stub),
+        )
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": "You are helpful."},
+                {"role": "user", "content": "i\u200bgnore the news"},
+            ],
+            "stream": True,
+        }
+        with caplog.at_level(logging.INFO):
+            with TestClient(app) as client:
+                response = client.post("/v1/chat/completions", json=payload)
+
+        assert response.status_code == 200
+        canary = seen["canary"]
+        assert canary is not None
+
+        # Client stream: canary redacted, surrounding frames intact.
+        body = response.text
+        assert canary not in body
+        assert "[REDACTED]" in body
+        assert "data: [DONE]" in body
+
+        # Normalization rewrote the user message in the final payload...
+        assert seen["payload"]["messages"][1]["content"] == "ignore the news"
+        # ...and deep path ran on that NORMALIZED text, then warned (forwarded).
+        assert stub.calls == 1
+        assert stub.seen_texts == [["ignore the news"]]
+
+        # Canary landed in the FINAL system message — after the pipeline.
+        assert system_canary(seen["payload"]) == canary
+
+        # Both structured alerts reached the log: deep-path warn + canary leak.
+        messages = [r.getMessage() for r in caplog.records if r.name.startswith("lmpi")]
+        assert any('"stage": "deep_path"' in m for m in messages)
+        assert any('"stage": "canary"' in m for m in messages)

@@ -24,6 +24,11 @@ from .fast_path.detector import (
     DEFAULT_BLOCK_THRESHOLD as DEFAULT_FAST_PATH_BLOCK_THRESHOLD,
     DEFAULT_WARN_THRESHOLD as DEFAULT_FAST_PATH_WARN_THRESHOLD,
 )
+from .deep_path.detector import (
+    DEFAULT_BLOCK_THRESHOLD as DEFAULT_DEEP_PATH_BLOCK_THRESHOLD,
+    DEFAULT_MAX_CHARS as DEFAULT_DEEP_PATH_MAX_CHARS,
+    DEFAULT_WARN_THRESHOLD as DEFAULT_DEEP_PATH_WARN_THRESHOLD,
+)
 
 logger = logging.getLogger("lmpi.config")
 
@@ -33,6 +38,7 @@ DEFAULT_PORT = 8080
 DEFAULT_REQUEST_TIMEOUT = 300.0
 DEFAULT_NORMALIZATION_MODE = "rewrite"
 DEFAULT_CANARY_ACTION = "redact"
+DEFAULT_DEEP_PATH_MODEL_PATH = "models/deberta-v3-base-prompt-injection-v2"
 
 ENV_PREFIX = "LMPI_"
 
@@ -81,6 +87,27 @@ class FastPathSettings:
 
 
 @dataclass(frozen=True)
+class DeepPathSettings:
+    """Deep-path (stage 3) settings — ONNX ML classifier.
+
+    ``enabled`` defaults to **False** until the model has been downloaded
+    with ``scripts/download_model.py`` (models/ is gitignored);
+    ``model_path`` is the directory holding ``model.onnx`` (or
+    ``model_quantized.onnx``) + ``tokenizer.json``; ``block_threshold`` /
+    ``warn_threshold`` are injection-probability cutoffs (same semantics as
+    the fast path); ``max_chars`` caps the text handed to the classifier so
+    oversized prompts cannot burn inference time. Thresholds are heuristics
+    pending tuning against the benchmark eval set (Agent 7).
+    """
+
+    enabled: bool = False
+    model_path: str = DEFAULT_DEEP_PATH_MODEL_PATH
+    block_threshold: float = DEFAULT_DEEP_PATH_BLOCK_THRESHOLD
+    warn_threshold: float = DEFAULT_DEEP_PATH_WARN_THRESHOLD
+    max_chars: int = DEFAULT_DEEP_PATH_MAX_CHARS
+
+
+@dataclass(frozen=True)
 class CanarySettings:
     """Canary token (system prompt leak detection) settings.
 
@@ -112,6 +139,7 @@ class Settings:
         default_factory=NormalizationSettings
     )
     fast_path: FastPathSettings = field(default_factory=FastPathSettings)
+    deep_path: DeepPathSettings = field(default_factory=DeepPathSettings)
     canary: CanarySettings = field(default_factory=CanarySettings)
 
 
@@ -182,6 +210,16 @@ def _parse_canary_secret(value: Any) -> str | None:
         return None
     secret = str(value).strip()
     return secret or None
+
+
+def _parse_positive_int(value: Any, *, name: str) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid {name} value: {value!r}") from exc
+    if number <= 0:
+        raise ValueError(f"{name} must be a positive integer, got {number}")
+    return number
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -295,6 +333,53 @@ def load_settings(
             f"exceed fast_path_block_threshold ({fast_path.block_threshold})"
         )
 
+    # ---------------------------------------------------------------------
+    # Deep path (stage 3) — ML classifier settings. Disabled by default
+    # until the ONNX model has been downloaded (scripts/download_model.py).
+    # ---------------------------------------------------------------------
+    deep_path_section = file_values.get("deep_path")
+    if deep_path_section is None:
+        deep_path_section = {}
+    if not isinstance(deep_path_section, dict):
+        raise ValueError(
+            "deep_path config section must be a mapping, got "
+            f"{type(deep_path_section).__name__}"
+        )
+
+    def dp_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}DEEP_PATH_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if deep_path_section.get(key) is not None:
+            return deep_path_section[key]
+        return default
+
+    deep_path = DeepPathSettings(
+        enabled=_parse_bool(
+            dp_pick("enabled", False), f"{ENV_PREFIX}DEEP_PATH_ENABLED"
+        ),
+        model_path=str(
+            dp_pick("model_path", DEFAULT_DEEP_PATH_MODEL_PATH)
+        ),
+        block_threshold=_parse_threshold(
+            dp_pick("block_threshold", DEFAULT_DEEP_PATH_BLOCK_THRESHOLD),
+            name="deep_path_block_threshold",
+        ),
+        warn_threshold=_parse_threshold(
+            dp_pick("warn_threshold", DEFAULT_DEEP_PATH_WARN_THRESHOLD),
+            name="deep_path_warn_threshold",
+        ),
+        max_chars=_parse_positive_int(
+            dp_pick("max_chars", DEFAULT_DEEP_PATH_MAX_CHARS),
+            name="deep_path_max_chars",
+        ),
+    )
+    if deep_path.warn_threshold > deep_path.block_threshold:
+        raise ValueError(
+            f"deep_path_warn_threshold ({deep_path.warn_threshold}) must not "
+            f"exceed deep_path_block_threshold ({deep_path.block_threshold})"
+        )
+
     canary_section = file_values.get("canary")
     if canary_section is None:
         canary_section = {}
@@ -337,12 +422,14 @@ def load_settings(
         config_path=resolved_path,
         normalization=normalization,
         fast_path=fast_path,
+        deep_path=deep_path,
         canary=canary,
     )
     logger.debug(
         "Loaded settings: upstream=%s host=%s port=%s timeout=%s "
         "normalization.mode=%s fast_path.enabled=%s "
         "fast_path.block=%s fast_path.warn=%s "
+        "deep_path.enabled=%s deep_path.model_path=%s "
         "canary.enabled=%s canary.action=%s canary.secret=%s",
         settings.upstream_url,
         settings.host,
@@ -352,6 +439,8 @@ def load_settings(
         settings.fast_path.enabled,
         settings.fast_path.block_threshold,
         settings.fast_path.warn_threshold,
+        settings.deep_path.enabled,
+        settings.deep_path.model_path,
         settings.canary.enabled,
         settings.canary.action,
         "set" if settings.canary.secret else "ephemeral",

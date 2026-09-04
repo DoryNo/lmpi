@@ -13,10 +13,19 @@ request_timeout: 300.0
 #   enabled: true
 #   block_threshold: 0.75   # score >= this → HTTP 403
 #   warn_threshold: 0.4     # score >= this < block → logged, forwarded
+#
+# Deep path (stage 3): ONNX DeBERTa prompt-injection classifier. Disabled
+# until the model is downloaded: python scripts/download_model.py
+# deep_path:
+#   enabled: false                              # then set true
+#   model_path: models/deberta-v3-base-prompt-injection-v2
+#   block_threshold: 0.75   # injection prob >= this → HTTP 403
+#   warn_threshold: 0.5     # >= this < block → logged, forwarded
+#   max_chars: 6000         # cap on text handed to the classifier
 
-# Canary tokens (stage 3): HMAC canary injected into the system prompt and
-# scanned for in responses to catch system prompt leakage. secret: HMAC key
-# for token derivation — leave empty for an ephemeral per-process secret.
+# Canary tokens (final stage): HMAC canary injected into the system prompt
+# and scanned for in responses to catch system prompt leakage. secret: HMAC
+# key for token derivation — leave empty for an ephemeral per-process secret.
 # canary:
 #   enabled: true
 #   action: redact          # redact (replace with [REDACTED]) | block (502)

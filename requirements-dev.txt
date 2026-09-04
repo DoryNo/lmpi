@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest>=8.0,<9.0
+# Synthetic ONNX models for deep-path backend tests (optional; tests skip without it)
+onnx>=1.16
