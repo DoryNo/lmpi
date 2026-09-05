@@ -527,7 +527,7 @@ class TestCombinedPipelineFlow:
             ),
             transport=httpx.MockTransport(sse_upstream(seen, LAYOUTS["split"])),
         )
-        stub = StubBackend(scores=(0.4, 0.6))  # warn band (≥ 0.5, < 0.75)
+        stub = StubBackend(scores=(0.4, 0.6))  # warn band (≥ 0.5, < 0.65)
         app.state.pipeline = DetectionPipeline(
             app.state.settings.normalization,
             fast_path=app.state.settings.fast_path,

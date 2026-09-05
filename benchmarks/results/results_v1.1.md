@@ -89,4 +89,4 @@ Deterministic 60/40 tuning/held-out split of the frozen set (seed 20260911, `ben
 - **manifest sha256:** `146689f09e9bf3940c1cce58…`
 - **selection seed:** 20260905
 
-Per-item records (IDs + decisions + timings, no prompt texts) are in the companion `results.json`.
+Per-item records (IDs + decisions + timings, no prompt texts) are in the companion `results_v1.1.json`.

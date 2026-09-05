@@ -28,7 +28,7 @@ v1.1.
 
 ## v1.1 — Hardening
 
-- [ ] Threshold tuning against the frozen eval set — *deliberately skipped in v1 (conscious decision: keep the shipped benchmark numbers baseline-as-shipped / out-of-sample); first v1.1 item, documented as its own iteration*
+- [x] Threshold tuning against the frozen eval set — **done (v1.1 round 1)**: deterministic 60/40 tuning/held-out split (seed 20260911, committed in `benchmarks/eval_set/split.json`); deep-path block 0.75→0.65 (sweep knee) + 4 new fast-path patterns, all measured on the 60% tuning subset only. Full-set TPR 36.5%→39.0% (held-out 35.0%→36.2%), FPR unchanged 3.0%, attack warns 1.5%→0%. See `benchmarks/tuning_log.md` and `benchmarks/results/results_v1.1.md`
 - [ ] Rate limiting (per-client, per-API-key)
 - [ ] Request/response logging с redaction
 - [ ] Structured audit log (JSON lines)

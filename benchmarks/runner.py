@@ -530,7 +530,7 @@ def _latency_row(label: str, block: dict[str, float]) -> str:
     )
 
 
-def render_markdown(results: dict[str, Any]) -> str:
+def render_markdown(results: dict[str, Any], companion_json: str = "results.json") -> str:
     """Render the results dict as the committed markdown report."""
     lines: list[str] = []
     repro = results["reproducibility"]
@@ -682,7 +682,7 @@ def render_markdown(results: dict[str, Any]) -> str:
     lines.append("")
     lines.append(
         "Per-item records (IDs + decisions + timings, no prompt texts) are in "
-        "the companion `results.json`."
+        f"the companion `{companion_json}`."
     )
     lines.append("")
     return "\n".join(lines)

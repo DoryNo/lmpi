@@ -7,8 +7,9 @@ mirrors the fast-path API::
     score >= warn_threshold  → "warn"    (logged, request still forwarded)
     otherwise                → "allow"
 
-Defaults ``block=0.75``, ``warn=0.5`` — heuristics pending tuning against
-the frozen benchmark eval set (Agent 7). Input hygiene: the stage runs on
+Defaults ``block=0.65``, ``warn=0.5`` — block threshold tuned against the
+frozen benchmark eval set (v1.1 tuning round 1; see
+``benchmarks/tuning_log.md``). Input hygiene: the stage runs on
 the **normalized** user text (stage 1 output) and caps the classified text
 at ``max_chars`` (default 6000) before it reaches the tokenizer, so a
 megabyte-sized prompt cannot burn inference time — the cap is recorded in

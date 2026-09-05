@@ -78,4 +78,4 @@ Frozen eval set — 200 attack prompts, 300 clean prompts. Manifest sha256: `146
 - **manifest sha256:** `146689f09e9bf3940c1cce58…`
 - **selection seed:** 20260905
 
-Per-item records (IDs + decisions + timings, no prompt texts) are in the companion `results.json`.
+Per-item records (IDs + decisions + timings, no prompt texts) are in the companion `results_v1.0.json`.

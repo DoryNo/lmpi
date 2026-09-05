@@ -104,7 +104,7 @@ class TestDeepPathActions:
         assert "raw" not in seen  # upstream never reached
 
     def test_deep_warn_logged_and_forwarded(self, caplog) -> None:
-        pipeline, _ = stub_pipeline(0.6)  # warn (>= 0.5, < 0.75)
+        pipeline, _ = stub_pipeline(0.6)  # warn (>= 0.5, < 0.65)
         seen: dict[str, Any] = {}
         payload = make_payload({"role": "user", "content": "hello world"})
         with caplog.at_level(logging.INFO, logger="lmpi.detection"):
@@ -184,7 +184,7 @@ class TestDeepPathConfig:
         settings = load_settings(environ={})
         assert settings.deep_path.enabled is False
         assert settings.deep_path.model_path == "models/deberta-v3-base-prompt-injection-v2"
-        assert settings.deep_path.block_threshold == 0.75
+        assert settings.deep_path.block_threshold == 0.65
         assert settings.deep_path.warn_threshold == 0.5
         assert settings.deep_path.max_chars == 6000
 

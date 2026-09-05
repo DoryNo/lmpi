@@ -340,7 +340,7 @@ def run_benchmark(args: argparse.Namespace) -> int:
     )
     args.markdown.parent.mkdir(parents=True, exist_ok=True)
     args.markdown.write_text(
-        render_markdown(results), encoding="utf-8"
+        render_markdown(results, companion_json=args.out.name), encoding="utf-8"
     )
 
     print()

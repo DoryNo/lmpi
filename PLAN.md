@@ -2,7 +2,7 @@
 
 > **Status: ✅ v1 MVP complete.** All four weeks shipped across PRs #1–#6
 > (see [AGENTS.md](AGENTS.md) for the agent → PR mapping and
-> [benchmarks/results/results.md](benchmarks/results/results.md) for the
+> [benchmarks/results/results_v1.0.md](benchmarks/results/results_v1.0.md) for the
 > measured numbers). The text below is kept as a historical record; items
 > that deviated from the plan are annotated inline.
 

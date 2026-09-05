@@ -2,16 +2,25 @@
 
 Transparent proxy that protects LLM applications from prompt injection and system prompt leakage. Drop-in replacement for an OpenAI-compatible API `base_url` — your app keeps working, but every prompt goes through a three-stage detection pipeline, and every response is scanned for a leaked system prompt.
 
-> **Status — v1.0 shipped.** All planned v1 features are merged and benchmarked. Development log: [PLAN.md](PLAN.md) · Next: [ROADMAP.md](ROADMAP.md).
+> **Status — v1.0 shipped; v1.1 tuning round 1 done** (thresholds/patterns tuned on a 60% split of the frozen eval set, held-out metrics reported). Development log: [PLAN.md](PLAN.md) · Next: [ROADMAP.md](ROADMAP.md).
 
 ## Results at a glance
 
-Measured on a frozen eval set — 200 attacks / 300 clean prompts ([full results](benchmarks/results/results.md)) — with the as-shipped thresholds: **thresholds were deliberately not tuned on this eval set** (tuning is scheduled for v1.1).
+Measured on the same frozen eval set — 200 attacks / 300 clean prompts — in two documented rounds ([full results](benchmarks/results/results_v1.1.md), [tuning log](benchmarks/tuning_log.md)):
 
-- **73% of real, in-the-wild jailbreak prompts blocked** (73/100 TrustAIRLab wild jailbreaks).
-- **36.5% overall attack TPR.** The other half of the attack set is *plain harmful requests* ("write a phishing email") with no injection structure — LMPI is an injection firewall, not a content-policy filter, so 0% there is by design, not a miss.
-- **3.0% false-positive rate overall — 0% on ordinary user prompts** (0/170 real first-turns). The misses are 8/30 hand-written security-research prompts that *academically discuss* prompt injection; the pretrained classifier reads them as attacks. This drives the planned fine-tuning iteration (Roadmap v3.0).
-- **Per-request overhead: p50 ≈ 30 ms on CPU** (whole pipeline, no LLM call); p95 (557 ms) is dominated by long prompts — ONNX inference on ~500-token texts.
+| | v1.0 baseline (as-shipped) | v1.1 (tuned) |
+|---|---|---|
+| In-the-wild jailbreaks blocked | 73/100 (73.0%) | **78/100 (78.0%)** |
+| Overall attack TPR | 36.5% | **39.0%** |
+| False positives | 9/300 (3.0%) | 9/300 (3.0%) |
+| Attack warns (forwarded) | 3 (1.5%) | **0 (0.0%)** |
+| Latency p50 / p95 | 29.5 / 557.5 ms | 29.7 / 604.7 ms |
+
+**How v1.1 was tuned, honestly:** the deep-path block threshold and four new fast-path patterns were tuned on a deterministic **60% tuning subset** of the frozen set (seed committed in [`benchmarks/eval_set/split.json`](benchmarks/eval_set/split.json)); the v1.1 numbers above are from a single full-set run, and the untouched **40% held-out** slice — never seen during tuning — reads **29/80 attacks (36.2%)** vs 28/80 (35.0%) for v1.0 on the same slice, **1/120 clean (0.8%)** in both. Full-set v1.1 numbers are optimistic by construction (the tuner saw 60% of the data); the held-out slice is the like-for-like comparison. Details: [tuning log](benchmarks/tuning_log.md).
+
+- The other half of the attack set is *plain harmful requests* ("write a phishing email") with no injection structure — LMPI is an injection firewall, not a content-policy filter, so 0% there is by design, not a miss (both rounds).
+- **3.0% false-positive rate overall — 0% on ordinary user prompts** (0/170 real first-turns, both rounds). The misses are 8/30 hand-written security-research prompts that *academically discuss* prompt injection; the pretrained classifier reads them as attacks. This drives the planned fine-tuning iteration (Roadmap v3.0).
+- **Per-request overhead: p50 ≈ 30 ms on CPU** (whole pipeline, no LLM call); p95 (~600 ms) is dominated by long prompts — ONNX inference on ~500-token texts.
 
 ## Architecture
 
@@ -64,7 +73,7 @@ The second pipeline stage (`src/fast_path/`) is a regex/heuristic detector that 
 - **Noisy-OR composite scoring** — `score = 1 − Π(1 − wᵢ)`: multiple weak signals stack (three 0.5-weight obfuscation hits → 0.875), so evasion used together still blocks; duplicate hits of the same pattern count once.
 - **Thresholds** — `score ≥ 0.75` → block (HTTP 403); `0.4 ≤ score < 0.75` → warn (logged, forwarded); configurable via `LMPI_FAST_PATH_BLOCK_THRESHOLD` / `LMPI_FAST_PATH_WARN_THRESHOLD`.
 - **False-positive controls** — word-boundary anchoring, structural gating (a persona switch alone or a restriction-lift phrase alone never scores — e.g. "Write a story where a robot must answer without restrictions" stays clean), benign collocations excluded ("ignore previous test results"), and quoted mentions (`"ignore all previous instructions"` discussed in a security course) demoted to zero weight.
-- **Honest caveat:** all weights are heuristic priors, not measurements — they were not tuned on the benchmark eval set (baseline-as-shipped numbers, see Benchmark Results); tuning is a separate, documented iteration.
+- **Honest caveat:** pattern weights remain heuristic priors, not measurements. v1.1 added four patterns and moved the deep-path block threshold in a documented tuning round against a 60% subset of the eval set (see Benchmark Results and [tuning_log.md](benchmarks/tuning_log.md)); the fast-path thresholds themselves (0.75 block / 0.4 warn) are unchanged from v1.0.
 
 ## Deep Path (ML)
 
@@ -109,97 +118,143 @@ python scripts/download_model.py        # deep-path ONNX model (gitignored)
 python benchmarks/run_benchmark.py      # downloads datasets into benchmarks/.cache/
 ```
 
-Latest run (`benchmarks/results/results.json` + [`benchmarks/results/results.md`](benchmarks/results/results.md)):
+Two committed runs on the same frozen set — the **v1.0 baseline**
+([results_v1.0.md](benchmarks/results/results_v1.0.md); as-shipped
+thresholds, deliberately not tuned on the eval set) and **v1.1**
+([results_v1.1.md](benchmarks/results/results_v1.1.md); thresholds and
+patterns tuned in a documented round —
+[tuning_log.md](benchmarks/tuning_log.md)):
 
-| Metric | Attacks | Clean |
-|--------|---------|-------|
-| Items | 200 | 300 |
-| **Blocked — TPR / FPR** | **73 (36.5%)** | **9 (3.0%)** |
-| Warned, forwarded | 3 (1.5%) | 0 (0.0%) |
-| Latency p50 / p95 / p99 (whole pipeline) | 29.5 / 557.5 / 574.2 ms | (same run) |
+| Metric | v1.0 baseline | v1.1 tuned |
+|--------|---------------|------------|
+| Attacks blocked (TPR) | 73/200 (36.5%) | **78/200 (39.0%)** |
+| — in-the-wild jailbreaks | 73/100 (73.0%) | **78/100 (78.0%)** |
+| — JBB plain harmful requests | 0/100 (0.0%) | 0/100 (0.0%) |
+| Clean blocked (FPR) | 9/300 (3.0%) | 9/300 (3.0%) |
+| Attack warns (forwarded) | 3 (1.5%) | **0 (0.0%)** |
+| Clean warns | 0 (0.0%) | 0 (0.0%) |
+| Latency p50 / p95 / p99 (whole pipeline) | 29.5 / 557.5 / 574.2 ms | 29.7 / 604.7 / 646.9 ms |
 
-**Methodology.** Every prompt is run through the full detection pipeline
-exactly as the proxy would: stage 1 normalization (rewrite mode), stage 2
-fast path (block ≥ 0.75, warn ≥ 0.4), stage 3 deep path — the real ONNX
-DeBERTa classifier (block ≥ 0.75, warn ≥ 0.5, max_chars 6000). Measured:
+**v1.1 tuning methodology.** The frozen manifest was split
+deterministically (seed `20260911`, committed in
+[`benchmarks/eval_set/split.json`](benchmarks/eval_set/split.json)) into a
+**60% tuning subset** (120 attacks + 180 clean) and a **40% held-out
+subset** (80 + 120). Every tuning decision — error analysis, a deep-path
+threshold sweep, four new fast-path patterns, one reverted experiment —
+was measured **on the tuning subset only**; the held-out slice was touched
+exactly once, by the final full-set run. Changes, hypotheses and
+keep/revert calls are recorded in
+[`benchmarks/tuning_log.md`](benchmarks/tuning_log.md).
+
+**Comparability note.** Same frozen set, so the runs are comparable — but
+not symmetrically: v1.1's full-set numbers are *optimistic by
+construction* (the tuner saw 60% of the prompts). The like-for-like
+comparison is the held-out slice, which v1.1 tuning never saw:
+**attacks 29/80 (36.2%) vs 28/80 (35.0%) for v1.0 on the same slice;
+clean 1/120 (0.8%) in both** (v1.0 per-slice numbers are computed offline
+from its committed per-item records). Full-set numbers are reported for
+reference — and they are what the shipped defaults produce.
+
+**Pipeline methodology (both runs).** Every prompt is run through the full
+detection pipeline exactly as the proxy would: stage 1 normalization
+(rewrite mode), stage 2 fast path (block ≥ 0.75, warn ≥ 0.4 — unchanged in
+v1.1), stage 3 deep path — the real ONNX DeBERTa classifier (v1.0: block
+≥ 0.75; v1.1: block ≥ 0.65, tuned; warn ≥ 0.5, max_chars 6000). Measured:
 `DetectionPipeline.process_request()` wall time on CPU — no LLM call, no
 network I/O; this is the per-request overhead LMPI adds in front of the
 target LLM. Canary detection is excluded by design: it scans the model's
 *output* for system-prompt leakage, a different concern from input-side
-detection. **Thresholds were not tuned on this eval set** — these are the
-baseline-as-shipped defaults recorded before the run; tuning is scheduled
-for v1.1 as a separate, documented iteration. Decisions are deterministic
-(a `--selfcheck` mode rebuilds the pipeline and re-runs a subset asserting
-identical decisions).
+detection. Decisions are deterministic (a `--selfcheck` mode rebuilds the
+pipeline and re-runs a subset asserting identical decisions; the v1.1 run
+was executed twice with **zero decision mismatches** across all 500 items).
 
-**By source** — the honest breakdown:
+**By source** — the honest breakdown (v1.0 → v1.1):
 
-| Source | Split | Items | Blocked | Rate |
-|--------|-------|-------|---------|------|
-| `jbb_harmful` — JBB harmful behaviors (plain harmful *requests*) | attack | 100 | 0 | 0.0% |
-| `wild_jailbreaks` — in-the-wild jailbreak prompts (TrustAIRLab) | attack | 100 | 73 | **73.0%** |
-| `jbb_benign` — JBB benign behaviors | clean | 100 | 1 | 1.0% |
-| `ultrachat` — real user first-turns (test_sft) | clean | 170 | 0 | 0.0% |
-| `tricky_benign` — hand-written security-research prompts | clean | 30 | 8 | 26.7% |
+| Source | Split | Items | v1.0 blocked | v1.1 blocked |
+|--------|-------|-------|--------------|--------------|
+| `jbb_harmful` — JBB harmful behaviors (plain harmful *requests*) | attack | 100 | 0 (0.0%) | 0 (0.0%) |
+| `wild_jailbreaks` — in-the-wild jailbreak prompts (TrustAIRLab) | attack | 100 | 73 (73.0%) | **78 (78.0%)** |
+| `jbb_benign` — JBB benign behaviors | clean | 100 | 1 (1.0%) | 1 (1.0%) |
+| `ultrachat` — real user first-turns (test_sft) | clean | 170 | 0 (0.0%) | 0 (0.0%) |
+| `tricky_benign` — hand-written security-research prompts | clean | 30 | 8 (26.7%) | 8 (26.7%) |
 
-**Per-stage attribution — attacks** (an item blocked by both stages counts in both):
-
-| Stage | Count | Rate |
-|-------|-------|------|
-| Fast path block | 8 | 4.0% |
-| Fast path warn (forwarded) | 0 | 0.0% |
-| Deep path block | 72 | 36.0% |
-| Deep path warn (forwarded) | 3 | 1.5% |
-| Blocked by both fast and deep (overlap) | 7 | 3.5% |
-| Fast path only | 1 | 0.5% |
-| Deep path only | 65 | 32.5% |
-| Normalization findings (rewrite mode, non-blocking) | 14 | 7.0% |
-
-**Per-stage attribution — clean prompts:**
+**Per-stage attribution — attacks, v1.1** (v1.0 in parens; an item blocked
+by both stages counts in both):
 
 | Stage | Count | Rate |
 |-------|-------|------|
-| Fast path block | 1 | 0.3% |
-| Fast path warn (forwarded) | 0 | 0.0% |
-| Deep path block | 9 | 3.0% |
-| Deep path warn (forwarded) | 0 | 0.0% |
-| Blocked by both fast and deep (overlap) | 1 | 0.3% |
-| Fast path only | 0 | 0.0% |
-| Deep path only | 8 | 2.7% |
-| Normalization findings (rewrite mode, non-blocking) | 5 | 1.7% |
+| Fast path block | 14 (was 8) | 7.0% |
+| Fast path warn (forwarded) | 0 (was 0) | 0.0% |
+| Deep path block | 75 (was 72) | 37.5% |
+| Deep path warn (forwarded) | 0 (was 3) | 0.0% |
+| Blocked by both fast and deep (overlap) | 11 (was 7) | 5.5% |
+| Fast path only | 3 (was 1) | 1.5% |
+| Deep path only | 64 (was 65) | 32.0% |
+| Normalization findings (rewrite mode, non-blocking) | 14 (was 14) | 7.0% |
 
-**Per-stage latency** (p50 / p95 / mean, ms, CPU):
+**Per-stage attribution — clean prompts, v1.1** (v1.0 in parens):
+
+| Stage | Count | Rate |
+|-------|-------|------|
+| Fast path block | 1 (was 1) | 0.3% |
+| Fast path warn (forwarded) | 0 (was 0) | 0.0% |
+| Deep path block | 9 (was 9) | 3.0% |
+| Deep path warn (forwarded) | 0 (was 0) | 0.0% |
+| Blocked by both fast and deep (overlap) | 1 (was 1) | 0.3% |
+| Fast path only | 0 (was 0) | 0.0% |
+| Deep path only | 8 (was 8) | 2.7% |
+| Normalization findings (rewrite mode, non-blocking) | 5 (was 5) | 1.7% |
+
+**Per-stage latency** (p50 / p95 / mean, ms, CPU; v1.1 run, v1.0 in parens):
 
 | Stage | p50 | p95 | mean |
 |-------|-----|-----|------|
-| Normalization | 0.17 | 2.90 | 0.64 |
-| Fast path | 0.18 | 4.39 | 0.99 |
-| Deep path (ONNX) | 29.94 | 550.66 | 129.07 |
+| Normalization | 0.18 (0.17) | 3.03 (2.90) | 0.66 (0.64) |
+| Fast path | 0.21 (0.18) | 5.74 (4.39) | 1.20 (0.99) |
+| Deep path (ONNX) | 30.69 (29.94) | 598.22 (550.66) | 139.98 (129.07) |
 
-Reproducibility: LMPI 0.1.0 (git `cd6b7e3`); full-precision `model.onnx` of
+Same hardware, same model; the p95 shift is within run-to-run variance for
+this single-machine benchmark (two v1.1 runs measured p95 604.7 / 606.5 ms
+— see the run ledger in [tuning_log.md](benchmarks/tuning_log.md)).
+
+Reproducibility: LMPI 0.1.0; full-precision `model.onnx` of
 `protectai/deberta-v3-base-prompt-injection-v2`; Python 3.13.14,
 onnxruntime 1.29.0, tokenizers 0.22.2, datasets 5.0.1; selection seed
-20260905; model/tokenizer/manifest SHA-256 recorded in `results.json`.
-Per-item records (IDs + decisions + timings, no prompt texts) are in
-`results.json`; the full write-up is
-[`benchmarks/results/results.md`](benchmarks/results/results.md).
+20260905; model/tokenizer/manifest SHA-256 recorded in both
+`results_v1.0.json` (v1.0 run at git `cd6b7e3`) and `results_v1.1.json`
+(v1.1 run from the tuning worktree at base `32ea00b`, tree dirty with the
+tuning changes themselves — recorded as `git_dirty: true`). Per-item
+records (IDs + decisions + timings, no prompt texts) are in the
+`results_v1.*.json` files; the full write-ups are
+[`benchmarks/results/results_v1.0.md`](benchmarks/results/results_v1.0.md)
+and
+[`benchmarks/results/results_v1.1.md`](benchmarks/results/results_v1.1.md).
 
 **What the numbers mean (honest reading):**
 
-- **TPR is 36.5% overall but 73% on real jailbreaks.** The JBB "harmful"
-  half measures *harmful requests* ("write a phishing email") — these
-  contain no injection structure, and LMPI is an injection firewall, not a
-  content-policy filter, so 0% there is the *correct* behavior, not a miss.
-  Against the in-the-wild jailbreaks (roleplay wrappers, instruction
-  overrides, real adversarial texts) the pipeline catches 73%.
-- **The deep path does the heavy lifting** (65 of 73 attack blocks are
-  deep-only); the regex fast path contributes 8 blocks + overlap, and
-  normalization rewrites 7% of attacks without blocking (its findings feed
-  the other stages).
-- **FPR is 3.0% overall (0% on ordinary user prompts).** All 8 tricky-benign
-  misses are prompts that academically *discuss* prompt injection — the
-  pretrained classifier reads them as attacks. This is the clearest signal
-  for the planned fine-tuning iteration (Roadmap v3.0).
+- **TPR moved 36.5% → 39.0% full-set, but the honest gain is smaller.**
+  All five decision changes vs v1.0 are attack-side (three former warns
+  and two former allows now block); on the untouched held-out slice the
+  gain is 28/80 → 29/80 (35.0% → 36.2%). The JBB "harmful" half measures
+  *harmful requests* ("write a phishing email") — these contain no
+  injection structure, and LMPI is an injection firewall, not a
+  content-policy filter, so 0% there is the *correct* behavior, not a
+  miss (both rounds). Against the in-the-wild jailbreaks the pipeline
+  catches 73% (v1.0) / 78% (v1.1).
+- **The deep path still does the heavy lifting** (64 of 78 v1.1 attack
+  blocks are deep-only); the tuned fast path now contributes 14 blocks
+  (was 8) + overlap, and normalization rewrites 7% of attacks without
+  blocking (its findings feed the other stages).
+- **FPR is unchanged at 3.0% (0% on ordinary user prompts).** All 8
+  tricky-benign misses are prompts that academically *discuss* prompt
+  injection — the pretrained classifier reads them as attacks, and no
+  threshold move fixes them (their deep scores sit at ≥ 0.94). This is
+  the clearest signal for the planned fine-tuning iteration (Roadmap
+  v3.0).
+- **The attack warn tier is now empty.** The three v1.0 warns are blocks
+  in v1.1, so on this eval set the "forwarded but suspicious" signal no
+  longer fires for attacks — a recall/availability trade-off documented
+  in the tuning log.
 - **p95/p99 latency is dominated by long prompts** (tokenization + CPU
   inference on ~500-token texts); typical short prompts land near p50
   (~30 ms). The model is full-precision (~740 MB) — no quantized export
@@ -210,7 +265,8 @@ Per-item records (IDs + decisions + timings, no prompt texts) are in
 skipped (gated dataset, would break clean-checkout reproduction); attacks
 are English-heavy; single CPU machine for latency (no GPU numbers); warned
 prompts are still forwarded, so the warn tier trades recall for
-availability.
+availability; the v1.1 tuning saw 60% of the set, so its full-set numbers
+are optimistic by construction (the held-out slice is reported above).
 
 ## Quickstart
 
@@ -373,18 +429,20 @@ See [ROADMAP.md](ROADMAP.md) for planned features.
 | Version | Feature | Status |
 |---------|---------|--------|
 | v1.0 | Core detection pipeline + canary + frozen-eval benchmark | ✅ Delivered (see Benchmark Results) |
-| v1.1 | Threshold tuning against the frozen eval set, rate limiting, audit log, hot-reload | 📋 Planned |
+| v1.1 | Threshold tuning against the frozen eval set, rate limiting, audit log, hot-reload | 🚧 In progress — tuning round 1 done (see Benchmark Results) |
 | v2.0 | Tool call firewall (SSRF, path traversal) | 📋 Planned |
 | v2.5 | DLP filter (PII detection, masking) | 📋 Planned |
 | v3.0 | Fine-tuned model | 📋 Planned |
 | v3.5 | Redis + Prometheus + Grafana | 📋 Planned |
 | v4.0 | Rust/Go port | 📋 Planned |
 
-**Threshold tuning was deliberately not done in v1.** The benchmark numbers
+**Threshold tuning was deliberately not done in v1** — the v1.0 numbers
 above are the baseline-as-shipped configuration, recorded before any
-evaluation — tuning the weights/thresholds against the eval set would make
-them in-sample numbers. It is scheduled as the first v1.1 item, documented
-as its own iteration.
+evaluation, and they are kept side-by-side with the tuned numbers for
+comparison. The first v1.1 item did exactly that tuning as a documented
+iteration: a deterministic 60/40 tuning/held-out split of the frozen set,
+all changes measured on the tuning subset, final numbers reported from the
+held-out slice ([tuning_log.md](benchmarks/tuning_log.md)).
 
 ## Project Structure
 
