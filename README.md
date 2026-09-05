@@ -400,6 +400,10 @@ Configuration (env vars override `config.yaml`):
 | `LMPI_CANARY_SECRET` | — (ephemeral + warning) | HMAC secret for canary derivation; set in production |
 | `LMPI_CANARY_ACTION` | `redact` | Leak response: `redact` (replace with `[REDACTED]`) / `block` (502 / SSE error) |
 | `LMPI_CANARY_ADD_MISSING_SYSTEM` | `false` | Add a system message (with canary) when the caller sent none |
+| `LMPI_RATE_LIMIT_ENABLED` | `true` | Per-client rate limiting (in-memory token bucket) on/off |
+| `LMPI_RATE_LIMIT_RPM` | `60` | Sustained rate per client, requests/minute (bucket refill) |
+| `LMPI_RATE_LIMIT_BURST` | `20` | Bucket capacity — spike allowance above the sustained rate |
+| `LMPI_MAX_BODY_BYTES` | `1048576` | Request-body cap; larger bodies are rejected with HTTP 413 |
 
 Run tests (offline — upstream is mocked, no ML model download needed):
 
@@ -407,6 +411,46 @@ Run tests (offline — upstream is mocked, no ML model download needed):
 pip install -r requirements-dev.txt
 pytest -q
 ```
+
+## Rate Limiting & Request Limits
+
+To keep one noisy client from starving everyone else (or from OOM-ing the
+proxy with a 2 GB body), v1.1 adds two admission controls in front of the
+detection pipeline:
+
+**Per-client rate limiting** — a classic token bucket, one token per admitted
+request. `LMPI_RATE_LIMIT_RPM` is the sustained refill rate; `LMPI_RATE_LIMIT_BURST`
+is the bucket capacity, so short spikes above the average rate are absorbed
+without ever allowing a sustained rate above the RPM value.
+
+- **Client key**: hash of the `Authorization` / `X-Api-Key` / `Api-Key`
+  credential when present (the credential itself is never stored or logged),
+  otherwise the client IP. Different clients get independent buckets.
+- **On limit exceeded**: HTTP **429** with a `Retry-After` header (seconds).
+- **On every response** (while limiting is enabled): `X-RateLimit-Limit` and
+  `X-RateLimit-Remaining` headers.
+- **`/health` is never throttled**, and the limit applies to request
+  *admission* only — an in-flight SSE stream is never interrupted mid-flight.
+
+**Body-size limit** — request bodies larger than `LMPI_MAX_BODY_BYTES`
+(default 1 MiB) are rejected with HTTP **413** before any parsing or
+forwarding, and the body is never fully buffered. This closes the
+"send a gigabyte of JSON" DoS vector.
+
+```yaml
+# config.yaml equivalents
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  burst: 20
+max_body_bytes: 1048576
+```
+
+**Single-process limitation**: the buckets live in the proxy process's
+memory. Behind multiple uvicorn workers or replicas each worker keeps its
+own buckets, so the effective limit scales with the worker count. Shared
+cross-process state (Redis) is planned for v3.5 — for now, either run a
+single worker or size `RPM`/`BURST` accordingly.
 
 ## Limitations (v1)
 

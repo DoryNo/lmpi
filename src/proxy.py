@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Any, AsyncIterator
 
 import httpx
@@ -18,11 +19,30 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from .canary import CanaryManager, CanaryScanState, CanaryToken
 from .detection.pipeline import DetectionPipeline, PipelineResult
+from .rate_limit import (
+    BODY_TOO_LARGE_STATUS_CODE,
+    HEADER_RATE_LIMIT,
+    HEADER_RATE_LIMIT_REMAINING,
+    HEADER_RETRY_AFTER,
+    RATE_LIMITED_STATUS_CODE,
+    RateLimitDecision,
+    request_client_key,
+)
 
 logger = logging.getLogger("lmpi.proxy")
 
 BLOCKED_STATUS_CODE = 403
 BAD_GATEWAY_STATUS_CODE = 502
+
+RATE_LIMITED_MESSAGE = "LMPI rate limit exceeded: too many requests"
+
+
+class BodyTooLarge(Exception):
+    """Raised when the request body exceeds ``max_body_bytes``."""
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"request body exceeds {limit} bytes")
+        self.limit = limit
 
 # Hop-by-hop headers (RFC 9110 section 7.6.1) plus headers httpx recomputes
 # itself for the upstream request (host from the upstream URL, content-length
@@ -171,7 +191,9 @@ def bad_gateway_response(detail: str) -> JSONResponse:
     )
 
 
-def blocked_response(reason: str | None) -> JSONResponse:
+def blocked_response(
+    reason: str | None, extra_headers: dict[str, str] | None = None
+) -> JSONResponse:
     """403 response used when the detection pipeline blocks a request."""
     return JSONResponse(
         status_code=BLOCKED_STATUS_CODE,
@@ -182,6 +204,7 @@ def blocked_response(reason: str | None) -> JSONResponse:
                 "code": BLOCKED_STATUS_CODE,
             }
         },
+        headers=extra_headers or {},
     )
 
 
@@ -197,6 +220,68 @@ def leak_detected_response() -> JSONResponse:
             }
         },
     )
+
+
+def rate_limit_headers(decision: RateLimitDecision | None) -> dict[str, str]:
+    """X-RateLimit-* headers to attach when rate limiting is enabled."""
+    if decision is None:
+        return {}
+    return {
+        HEADER_RATE_LIMIT: str(decision.limit),
+        HEADER_RATE_LIMIT_REMAINING: str(decision.remaining),
+    }
+
+
+def rate_limited_response(decision: RateLimitDecision) -> JSONResponse:
+    """429 response with Retry-After after the client's bucket ran dry."""
+    retry_after = max(1, int(math.ceil(decision.retry_after)))
+    return JSONResponse(
+        status_code=RATE_LIMITED_STATUS_CODE,
+        content={
+            "error": {
+                "message": RATE_LIMITED_MESSAGE,
+                "type": "lmpi_rate_limited",
+                "code": RATE_LIMITED_STATUS_CODE,
+            }
+        },
+        headers={
+            **rate_limit_headers(decision),
+            HEADER_RETRY_AFTER: str(retry_after),
+        },
+    )
+
+
+def body_too_large_response(
+    limit: int, extra_headers: dict[str, str] | None = None
+) -> JSONResponse:
+    """413 response for bodies exceeding ``max_body_bytes`` (DoS hardening)."""
+    return JSONResponse(
+        status_code=BODY_TOO_LARGE_STATUS_CODE,
+        content={
+            "error": {
+                "message": f"Request body exceeds the {limit} byte limit",
+                "type": "lmpi_body_too_large",
+                "code": BODY_TOO_LARGE_STATUS_CODE,
+            }
+        },
+        headers=extra_headers or {},
+    )
+
+
+async def read_body_limited(request: Request, max_bytes: int) -> bytes:
+    """Read the request body while enforcing the size cap.
+
+    Streams chunk-by-chunk and aborts as soon as the cap is exceeded, so an
+    oversized body is never fully buffered. Raises :class:`BodyTooLarge`.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise BodyTooLarge(max_bytes)
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def check_upstream(
@@ -226,8 +311,30 @@ async def forward_chat_completions(request: Request) -> Response:
     client: httpx.AsyncClient = request.app.state.client
     pipeline: DetectionPipeline = request.app.state.pipeline
     canary: CanaryManager | None = getattr(request.app.state, "canary", None)
+    settings = request.app.state.settings
 
-    body = await request.body()
+    # --- Admission control: rate limit + body-size cap (v1.1 hardening) ---
+    limiter = getattr(request.app.state, "rate_limiter", None)
+    decision: RateLimitDecision | None = None
+    if limiter is not None:
+        decision = limiter.decide(request_client_key(request))
+        if not decision.allowed:
+            logger.info(
+                "Rate limit exceeded (remaining=0, retry_after=%.2fs)",
+                decision.retry_after,
+            )
+            return rate_limited_response(decision)
+    extra_headers = rate_limit_headers(decision)
+
+    try:
+        body = await read_body_limited(request, settings.max_body_bytes)
+    except BodyTooLarge:
+        logger.warning(
+            "Request body exceeds max_body_bytes=%s — rejected with 413",
+            settings.max_body_bytes,
+        )
+        return body_too_large_response(settings.max_body_bytes, extra_headers)
+
     payload = parse_json_body(body)
     canary_token: CanaryToken | None = None
 
@@ -235,7 +342,7 @@ async def forward_chat_completions(request: Request) -> Response:
         result: PipelineResult = await pipeline.process_request(payload)
         if result.action == "block":
             logger.info("Request blocked by detection pipeline: %s", result.reason)
-            return blocked_response(result.reason)
+            return blocked_response(result.reason, extra_headers)
         final_payload = payload if result.payload is None else result.payload
         if canary is not None:
             final_payload, canary_token = canary.inject(final_payload)
@@ -262,7 +369,10 @@ async def forward_chat_completions(request: Request) -> Response:
                 return Response(
                     content=content,
                     status_code=upstream_response.status_code,
-                    headers=filter_response_headers(upstream_response.headers),
+                    headers={
+                        **filter_response_headers(upstream_response.headers),
+                        **extra_headers,
+                    },
                 )
             scan = (
                 canary.new_scan_state(canary_token)
@@ -272,9 +382,12 @@ async def forward_chat_completions(request: Request) -> Response:
             return StreamingResponse(
                 stream_upstream_response(upstream_response, scan=scan),
                 status_code=upstream_response.status_code,
-                headers=filter_response_headers(
-                    upstream_response.headers, keep_content_encoding=True
-                ),
+                headers={
+                    **filter_response_headers(
+                        upstream_response.headers, keep_content_encoding=True
+                    ),
+                    **extra_headers,
+                },
             )
         upstream_response = await client.post(
             upstream_path, content=body, headers=headers
@@ -292,5 +405,8 @@ async def forward_chat_completions(request: Request) -> Response:
     return Response(
         content=content,
         status_code=upstream_response.status_code,
-        headers=filter_response_headers(upstream_response.headers),
+        headers={
+            **filter_response_headers(upstream_response.headers),
+            **extra_headers,
+        },
     )

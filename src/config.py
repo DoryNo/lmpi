@@ -39,6 +39,10 @@ DEFAULT_REQUEST_TIMEOUT = 300.0
 DEFAULT_NORMALIZATION_MODE = "rewrite"
 DEFAULT_CANARY_ACTION = "redact"
 DEFAULT_DEEP_PATH_MODEL_PATH = "models/deberta-v3-base-prompt-injection-v2"
+DEFAULT_RATE_LIMIT_ENABLED = True
+DEFAULT_RATE_LIMIT_RPM = 60
+DEFAULT_RATE_LIMIT_BURST = 20
+DEFAULT_MAX_BODY_BYTES = 1_048_576  # 1 MiB
 
 ENV_PREFIX = "LMPI_"
 
@@ -127,6 +131,21 @@ class CanarySettings:
 
 
 @dataclass(frozen=True)
+class RateLimitSettings:
+    """Per-client rate limiting (in-memory token bucket) settings.
+
+    ``requests_per_minute`` is the sustained refill rate and ``burst`` the
+    bucket capacity, so callers may briefly exceed the average rate. The
+    limiter is keyed per client (credential hash, else IP) and lives in a
+    single process — see :mod:`src.rate_limit`.
+    """
+
+    enabled: bool = DEFAULT_RATE_LIMIT_ENABLED
+    requests_per_minute: int = DEFAULT_RATE_LIMIT_RPM
+    burst: int = DEFAULT_RATE_LIMIT_BURST
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings for the LMPI proxy."""
 
@@ -134,6 +153,7 @@ class Settings:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
+    max_body_bytes: int = DEFAULT_MAX_BODY_BYTES
     config_path: str | None = None
     normalization: NormalizationSettings = field(
         default_factory=NormalizationSettings
@@ -141,6 +161,7 @@ class Settings:
     fast_path: FastPathSettings = field(default_factory=FastPathSettings)
     deep_path: DeepPathSettings = field(default_factory=DeepPathSettings)
     canary: CanarySettings = field(default_factory=CanarySettings)
+    rate_limit: RateLimitSettings = field(default_factory=RateLimitSettings)
 
 
 def _parse_port(value: Any) -> int:
@@ -409,6 +430,50 @@ def load_settings(
         ),
     )
 
+    # ---------------------------------------------------------------------
+    # Rate limiting (v1.1 hardening) — per-client token bucket.
+    # ---------------------------------------------------------------------
+    rate_limit_section = file_values.get("rate_limit")
+    if rate_limit_section is None:
+        rate_limit_section = {}
+    if not isinstance(rate_limit_section, dict):
+        raise ValueError(
+            "rate_limit config section must be a mapping, got "
+            f"{type(rate_limit_section).__name__}"
+        )
+
+    # requests_per_minute is spelled LMPI_RATE_LIMIT_RPM for brevity.
+    rate_limit_env_keys = {
+        "enabled": f"{ENV_PREFIX}RATE_LIMIT_ENABLED",
+        "requests_per_minute": f"{ENV_PREFIX}RATE_LIMIT_RPM",
+        "burst": f"{ENV_PREFIX}RATE_LIMIT_BURST",
+    }
+
+    def rl_pick(key: str, default: Any) -> Any:
+        env_key = rate_limit_env_keys[key]
+        if env.get(env_key):
+            return env[env_key]
+        if rate_limit_section.get(key) is not None:
+            return rate_limit_section[key]
+        return default
+
+    rate_limit = RateLimitSettings(
+        enabled=_parse_bool(rl_pick("enabled", DEFAULT_RATE_LIMIT_ENABLED), rate_limit_env_keys["enabled"]),
+        requests_per_minute=_parse_positive_int(
+            rl_pick("requests_per_minute", DEFAULT_RATE_LIMIT_RPM),
+            name="rate_limit_requests_per_minute",
+        ),
+        burst=_parse_positive_int(
+            rl_pick("burst", DEFAULT_RATE_LIMIT_BURST),
+            name="rate_limit_burst",
+        ),
+    )
+
+    max_body_bytes = _parse_positive_int(
+        pick("max_body_bytes", DEFAULT_MAX_BODY_BYTES),
+        name="max_body_bytes",
+    )
+
     if not upstream_url.lower().startswith(("http://", "https://")):
         raise ValueError(
             f"upstream_url must start with http:// or https://, got {upstream_url!r}"
@@ -419,11 +484,13 @@ def load_settings(
         host=host,
         port=port,
         request_timeout=request_timeout,
+        max_body_bytes=max_body_bytes,
         config_path=resolved_path,
         normalization=normalization,
         fast_path=fast_path,
         deep_path=deep_path,
         canary=canary,
+        rate_limit=rate_limit,
     )
     logger.debug(
         "Loaded settings: upstream=%s host=%s port=%s timeout=%s "

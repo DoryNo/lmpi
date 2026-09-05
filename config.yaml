@@ -33,3 +33,15 @@ request_timeout: 300.0
 #   action: redact          # redact (replace with [REDACTED]) | block (502)
 #   secret: ""
 #   add_missing_system: false  # add a system message when caller sent none
+
+# Rate limiting (v1.1): per-client in-memory token bucket. Key = hash of the
+# Authorization / API-key header when present, else the client IP. Single-
+# process only (no Redis — roadmap v3.5). /health is never throttled.
+# rate_limit:
+#   enabled: true
+#   requests_per_minute: 60   # sustained refill rate (LMPI_RATE_LIMIT_RPM)
+#   burst: 20                 # bucket capacity / spike allowance
+
+# Request-body cap (v1.1): bodies larger than this are rejected with
+# HTTP 413 before parsing/forwarding (DoS hardening).
+# max_body_bytes: 1048576   # 1 MiB
