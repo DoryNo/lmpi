@@ -1,6 +1,9 @@
 # LMPI proxy configuration.
 # Environment variables (LMPI_*) override these values:
 #   LMPI_UPSTREAM_URL, LMPI_HOST, LMPI_PORT, LMPI_REQUEST_TIMEOUT,
+#   LMPI_RATE_LIMIT_ENABLED, LMPI_RATE_LIMIT_RPM, LMPI_RATE_LIMIT_BURST,
+#   LMPI_MAX_BODY_BYTES, LMPI_AUDIT_ENABLED, LMPI_AUDIT_PATH,
+#   LMPI_AUDIT_INCLUDE_TEXT, LMPI_AUDIT_ACCESS_LOG,
 #   LMPI_CONFIG_PATH (path to this file).
 upstream_url: https://api.openai.com
 host: 0.0.0.0
@@ -45,3 +48,14 @@ request_timeout: 300.0
 # Request-body cap (v1.1): bodies larger than this are rejected with
 # HTTP 413 before parsing/forwarding (DoS hardening).
 # max_body_bytes: 1048576   # 1 MiB
+
+# Audit log (hardening v1.1): JSON-lines audit trail. One JSON object per
+# line — detection decisions (request id, stage, action, scores, latency),
+# canary leak alerts (fingerprint only) and, with access_log, one access
+# entry per HTTP request. Disabled by default.
+# audit:
+#   enabled: false
+#   path: stdout            # stdout | stderr | /path/to/audit.jsonl
+#   include_text: false     # include prompt text in detection events
+#                           # (canary token values are never logged either way)
+#   access_log: false       # per-request access entries (hashed client key)

@@ -35,7 +35,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from ..config import DeepPathSettings, FastPathSettings, NormalizationSettings
 from ..deep_path import DeepPathDetector, DeepPathResult
@@ -64,6 +64,10 @@ class PipelineResult:
     action: Action = "pass"
     reason: str | None = None
     payload: dict[str, Any] | None = None
+    # Agent 10 (audit): which stage produced the decision and its scores,
+    # populated for block decisions (and warn events, via the on_event hook).
+    stage: str | None = None
+    scores: dict[str, Any] | None = None
 
 
 def extract_user_text(payload: dict[str, Any]) -> str:
@@ -125,7 +129,13 @@ class DetectionPipeline:
                 "LMPI_DEEP_PATH_ENABLED=false)"
             )
 
-    async def process_request(self, payload: dict[str, Any]) -> PipelineResult:
+    async def process_request(
+        self,
+        payload: dict[str, Any],
+        *,
+        request_id: str | None = None,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
+    ) -> PipelineResult:
         """Inspect a chat completion payload and decide pass / block.
 
         Stage 1 normalizes every user-message content, rewrites the payload
@@ -134,10 +144,24 @@ class DetectionPipeline:
         classifier over the same text, only when fast path did not block and
         the stage is available. Depending on the configured stage actions
         the result can block (403), rewrite, or pass through.
+
+        ``request_id`` / ``on_event`` (Agent 10, audit): when ``on_event`` is
+        given, every stage-level detection event (findings, warn, block) is
+        also delivered as a JSON-safe dict with ``request_id``, ``stage``,
+        ``action`` and ``scores`` — used by the structured audit log. The
+        existing plain log lines are unchanged.
         """
         messages = payload.get("messages")
         if not isinstance(messages, list):
             return PipelineResult()
+
+        def emit_event(event: dict[str, Any]) -> None:
+            if on_event is None:
+                return
+            event = dict(event)
+            if request_id is not None:
+                event["request_id"] = request_id
+            on_event(event)
 
         # ---------------------------------------------------------------
         # Stage 1 — ingress normalization (per user message, never raises)
@@ -151,6 +175,17 @@ class DetectionPipeline:
 
         if findings:
             self._log_findings(payload, findings)
+            scores: dict[str, Any] = {
+                "findings": [finding.to_dict() for finding in findings]
+            }
+            if self.normalization.mode == "block":
+                emit_event(
+                    {"stage": "normalization", "action": "block", "scores": scores}
+                )
+            else:
+                emit_event(
+                    {"stage": "normalization", "action": "warn", "scores": scores}
+                )
 
         if findings and self.normalization.mode == "block":
             categories = sorted({finding.category for finding in findings})
@@ -159,6 +194,8 @@ class DetectionPipeline:
                 reason=(
                     "Request blocked by normalization: " + ", ".join(categories)
                 ),
+                stage="normalization",
+                scores=scores,
             )
 
         result = PipelineResult()
@@ -175,11 +212,30 @@ class DetectionPipeline:
             text = extract_user_text({"messages": new_messages})
             if text.strip():
                 detection = self.fast_path.detect(text)
+                if detection.action != "allow":
+                    self._log_detection(detection, level="warning" if detection.action == "block" else "info")
+                    emit_event(
+                        {
+                            "stage": "fast_path",
+                            "action": detection.action,
+                            "scores": {
+                                key: value
+                                for key, value in detection.log_dict().items()
+                                if key not in ("stage", "action")
+                            },
+                        }
+                    )
                 if detection.action == "block":
-                    self._log_detection(detection, level="warning")
-                    return PipelineResult(action="block", reason=detection.reason)
-                if detection.action == "warn":
-                    self._log_detection(detection, level="info")
+                    return PipelineResult(
+                        action="block",
+                        reason=detection.reason,
+                        stage="fast_path",
+                        scores={
+                            key: value
+                            for key, value in detection.log_dict().items()
+                            if key not in ("stage", "action")
+                        },
+                    )
 
         # ---------------------------------------------------------------
         # Stage 3 — deep path (ML classifier, Agent 5). Skipped when fast
@@ -191,11 +247,31 @@ class DetectionPipeline:
             text = extract_user_text({"messages": new_messages})
             if text.strip():
                 detection = self.deep_path.detect(text)
+                if detection.action != "allow":
+                    level = "warning" if detection.action == "block" else "info"
+                    self._log_deep_detection(detection, level=level)
+                    emit_event(
+                        {
+                            "stage": "deep_path",
+                            "action": detection.action,
+                            "scores": {
+                                key: value
+                                for key, value in detection.log_dict().items()
+                                if key not in ("stage", "action")
+                            },
+                        }
+                    )
                 if detection.action == "block":
-                    self._log_deep_detection(detection, level="warning")
-                    return PipelineResult(action="block", reason=detection.reason)
-                if detection.action == "warn":
-                    self._log_deep_detection(detection, level="info")
+                    return PipelineResult(
+                        action="block",
+                        reason=detection.reason,
+                        stage="deep_path",
+                        scores={
+                            key: value
+                            for key, value in detection.log_dict().items()
+                            if key not in ("stage", "action")
+                        },
+                    )
 
         return result
 

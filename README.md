@@ -104,6 +104,49 @@ The proxy-side stage (`src/canary/`) answers a question the classifier can't: *d
 - **Secret** — if `LMPI_CANARY_SECRET` is unset, an ephemeral secret is generated at startup (warning logged; tokens are still unique per request, but restarts can't be compared).
 - **Honest caveat:** canary detection only catches leaks that copy the token verbatim — a model that paraphrases the system prompt is not caught (paraphrase resistance needs semantic detection, see Roadmap).
 
+## Audit Log & Observability
+
+The proxy can keep a structured **JSON-lines audit trail** of every detection decision
+(`src/audit.py`). One JSON object per line, written to a configurable sink — off by default:
+
+| Config (env / `audit:` YAML key) | Default | Meaning |
+|---|---|---|
+| `LMPI_AUDIT_ENABLED` / `audit.enabled` | `false` | Enable the JSONL audit log |
+| `LMPI_AUDIT_PATH` / `audit.path` | `stdout` | Sink: `stdout`, `stderr`, or a file path (append mode) |
+| `LMPI_AUDIT_INCLUDE_TEXT` / `audit.include_text` | `false` | Include prompt text in detection events |
+| `LMPI_AUDIT_ACCESS_LOG` / `audit.access_log` | `false` | Also emit one access entry per HTTP request |
+
+```bash
+# JSONL audit to a file, with per-request access entries:
+LMPI_AUDIT_ENABLED=true LMPI_AUDIT_PATH=/var/log/lmpi/audit.jsonl \
+LMPI_AUDIT_ACCESS_LOG=true uvicorn src.main:app
+```
+
+Event types:
+
+- **`detection`** — the pipeline decision per request: `request_id`, `action`
+  (`pass` / `block`), `stage` (which stage decided), `scores` (stage score,
+  patterns, thresholds), `reason`, `latency_ms`.
+- **`stage`** — per-stage detection events (normalization findings, fast/deep
+  path `warn`/`block`) correlated by `request_id`.
+- **`canary_leak`** — canary alert with the token **fingerprint only**.
+- **`access`** — method, path, status, `duration_ms`, and a *hashed* client
+  key (`sha256:<8 hex>`) — raw credentials, request/response bodies are never
+  logged.
+
+**Redaction guarantees:** canary token *values* never appear in the audit log
+(only HMAC fingerprints; prompt text is scrubbed of canaries even when
+`include_text` is on). Prompt text is excluded by default — opt in with
+`LMPI_AUDIT_INCLUDE_TEXT=true` if your retention policy allows it.
+
+**Fail-fast startup & config validation:** configuration is validated at
+startup (types, ranges, unknown YAML keys are warned about, threshold
+ordering). Invalid values abort startup with a clear message naming the bad
+key/value — e.g. `LMPI startup failed — invalid configuration: Invalid
+fast_path_block_threshold value: '2.0'` — instead of an opaque import crash.
+The file sink is flushed and closed on graceful shutdown, so a restart never
+loses recorded events.
+
 ## Benchmark Results
 
 Reproducible benchmark against a **frozen eval set** (500 prompts: 200

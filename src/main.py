@@ -6,11 +6,18 @@ Run with::
 
 or ``python -m src.main`` to pick host/port from ``LMPI_*`` env vars /
 ``config.yaml``.
+
+The module-level ``app`` attribute is a **lazy** proxy (PEP 562
+``__getattr__``): configuration is only loaded when uvicorn actually asks
+for ``src.main:app``, so a bad config fails at *startup* with a clear,
+readable message naming the offending key/value — and ``import src.main``
+no longer crashes at import time.
 """
 
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
@@ -19,6 +26,7 @@ import uvicorn
 from fastapi import FastAPI, Request, Response
 
 from . import __version__
+from .audit import AccessLogMiddleware, build_audit_sink
 from .canary import CanaryManager
 from .config import Settings, load_settings
 from .detection.pipeline import DetectionPipeline
@@ -104,7 +112,11 @@ def build_upstream_client(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Create the shared upstream client on startup, close it on shutdown."""
+    """Create the shared upstream client on startup, close it on shutdown.
+
+    The audit sink (file target) is flushed and closed in the shutdown
+    branch so a graceful restart never loses recorded events.
+    """
     app.state.client = build_upstream_client(
         app.state.settings, transport=app.state.transport
     )
@@ -115,6 +127,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await app.state.client.aclose()
+        audit = getattr(app.state, "audit", None)
+        if audit is not None:
+            audit.close()
 
 
 def create_app(
@@ -122,13 +137,19 @@ def create_app(
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> FastAPI:
     """Build the LMPI FastAPI app."""
+    if settings is None:
+        settings = load_settings()
     app = FastAPI(title="LMPI Proxy", version=__version__, lifespan=lifespan)
-    app.state.settings = settings or load_settings()
+    app.state.settings = settings
     app.state.transport = transport
-    app.state.pipeline = build_pipeline(app.state.settings)
-    app.state.canary = build_canary_manager(app.state.settings)
+    app.state.pipeline = build_pipeline(settings)
+    app.state.canary = build_canary_manager(settings)
     # ``None`` when rate limiting is disabled — the proxy skips admission then.
-    app.state.rate_limiter = build_rate_limiter(app.state.settings)
+    app.state.rate_limiter = build_rate_limiter(settings)
+    app.state.audit = build_audit_sink(settings.audit)
+    app.state.audit_settings = settings.audit
+    if settings.audit.access_log and app.state.audit is not None:
+        app.add_middleware(AccessLogMiddleware, sink=app.state.audit)
 
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request) -> Response:
@@ -144,9 +165,24 @@ def create_app(
     return app
 
 
+def _startup_failure(exc: BaseException) -> None:
+    """Print a clear, actionable config error and exit non-zero."""
+    message = f"LMPI startup failed — invalid configuration: {exc}"
+    print(message, file=sys.stderr)
+    logger.critical(message)
+
+
 def main() -> None:
-    """Run uvicorn with host/port from settings (env vars > YAML > defaults)."""
-    settings = load_settings()
+    """Run uvicorn with host/port from settings (env vars > YAML > defaults).
+
+    Configuration is validated *before* uvicorn starts: a bad value fails
+    fast with a readable message instead of an opaque import-time crash.
+    """
+    try:
+        settings = load_settings()
+    except Exception as exc:  # noqa: BLE001 - fail fast with a clear message
+        _startup_failure(exc)
+        raise SystemExit(2) from exc
     logging.basicConfig(level=logging.INFO)
     logger.info(
         "Starting LMPI proxy on %s:%s → upstream %s",
@@ -154,11 +190,33 @@ def main() -> None:
         settings.port,
         settings.upstream_url,
     )
-    uvicorn.run("src.main:app", host=settings.host, port=settings.port)
+    uvicorn.run(create_app(settings), host=settings.host, port=settings.port)
 
 
 if __name__ == "__main__":
     main()
 
 
-app = create_app()
+# ---------------------------------------------------------------------------
+# Lazy module-level ``app`` (PEP 562) — keeps ``uvicorn src.main:app`` working
+# (Dockerfile / docker-compose) while deferring config load + validation to
+# uvicorn's startup. A bad config now surfaces as a readable startup error.
+# ---------------------------------------------------------------------------
+_cached_app: FastAPI | None = None
+
+
+def _load_default_app() -> FastAPI:
+    global _cached_app
+    if _cached_app is None:
+        try:
+            _cached_app = create_app()
+        except Exception as exc:  # noqa: BLE001 - readable startup failure
+            _startup_failure(exc)
+            raise
+    return _cached_app
+
+
+def __getattr__(name: str) -> Any:
+    if name == "app":
+        return _load_default_app()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
