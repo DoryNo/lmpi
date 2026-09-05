@@ -6,8 +6,10 @@ Precedence (highest first):
 2. YAML file (path from ``LMPI_CONFIG_PATH``, or ``config.yaml`` keys)
 3. Built-in defaults
 
-Unknown YAML keys are ignored so future agents (detection stages, benchmarks)
-can add their own sections without breaking the proxy.
+Unknown YAML keys are reported with a warning (so typos fail loudly enough
+to notice) but do not break the proxy; invalid *values* (types, ranges,
+mutually inconsistent options) raise :class:`ValueError` with a message
+naming the offending key and value so startup fails fast and clearly.
 """
 
 from __future__ import annotations
@@ -51,6 +53,10 @@ NORMALIZATION_MODES = ("rewrite", "block", "log")
 
 # canary.action: what to do when a canary token leaks into a response.
 CANARY_ACTIONS = ("redact", "block")
+
+# audit.path: special targets that map to process streams; anything else is
+# treated as a file path (opened in append mode).
+AUDIT_STREAM_TARGETS = frozenset({"stdout", "stderr"})
 
 _BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
 _BOOL_FALSE = frozenset({"0", "false", "no", "off"})
@@ -146,6 +152,27 @@ class RateLimitSettings:
 
 
 @dataclass(frozen=True)
+class AuditSettings:
+    """Audit / access log settings (Agent 10, hardening v1.1).
+
+    ``enabled`` (default **False**) turns the JSONL audit log on. ``path``
+    selects the sink: ``stdout``, ``stderr``, or a file path (append mode,
+    closed on graceful shutdown). ``include_text`` (default **False**)
+    controls whether prompt text is embedded in detection events; when it
+    is off the ``text`` field is omitted entirely, and when on, any canary
+    token value is scrubbed by the caller before the event is written.
+    ``access_log`` additionally emits one access-log entry per HTTP request
+    (method, path, status, duration, hashed client key — never bodies or
+    raw credentials).
+    """
+
+    enabled: bool = False
+    path: str = "stdout"
+    include_text: bool = False
+    access_log: bool = False
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings for the LMPI proxy."""
 
@@ -162,6 +189,7 @@ class Settings:
     deep_path: DeepPathSettings = field(default_factory=DeepPathSettings)
     canary: CanarySettings = field(default_factory=CanarySettings)
     rate_limit: RateLimitSettings = field(default_factory=RateLimitSettings)
+    audit: AuditSettings = field(default_factory=AuditSettings)
 
 
 def _parse_port(value: Any) -> int:
@@ -243,6 +271,70 @@ def _parse_positive_int(value: Any, *, name: str) -> int:
     return number
 
 
+def _parse_audit_path(value: Any) -> str:
+    path = str(value).strip()
+    if not path:
+        raise ValueError(
+            "audit path must be 'stdout', 'stderr', or a file path, got empty value"
+        )
+    return path
+
+
+# Top-level YAML keys accepted by load_settings; anything else triggers a
+# warning (typo protection) without failing startup.
+KNOWN_TOP_LEVEL_KEYS = frozenset(
+    {
+        "upstream_url",
+        "host",
+        "port",
+        "request_timeout",
+        "max_body_bytes",
+        "normalization",
+        "fast_path",
+        "deep_path",
+        "canary",
+        "rate_limit",
+        "audit",
+    }
+)
+
+# Accepted keys per YAML section (must stay in sync with the dataclasses).
+KNOWN_SECTION_KEYS: dict[str, frozenset[str]] = {
+    "normalization": frozenset(
+        {"mode", "unicode", "base64", "hex", "rot13", "delimiters"}
+    ),
+    "fast_path": frozenset({"enabled", "block_threshold", "warn_threshold"}),
+    "deep_path": frozenset(
+        {"enabled", "model_path", "block_threshold", "warn_threshold", "max_chars"}
+    ),
+    "canary": frozenset({"enabled", "secret", "action", "add_missing_system"}),
+    "rate_limit": frozenset({"enabled", "requests_per_minute", "burst"}),
+    "audit": frozenset({"enabled", "path", "include_text", "access_log"}),
+}
+
+
+def warn_unknown_keys(
+    file_values: dict[str, Any],
+    *,
+    logger: logging.Logger,
+    section: str | None = None,
+) -> None:
+    """Log a warning for YAML keys we do not recognize (typo protection)."""
+    if section is None:
+        known = KNOWN_TOP_LEVEL_KEYS
+        unknown = [key for key in file_values if key not in known]
+    else:
+        known = KNOWN_SECTION_KEYS.get(section, frozenset())
+        unknown = [key for key in file_values if key not in known]
+    if unknown:
+        scope = f" in section '{section}'" if section else ""
+        logger.warning(
+            "Unknown config key(s)%s (ignored, check for typos): %s",
+            scope,
+            ", ".join(sorted(unknown)),
+        )
+
+
 def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise FileNotFoundError(f"LMPI config file not found: {path}")
@@ -271,6 +363,7 @@ def load_settings(
     file_values: dict[str, Any] = {}
     if resolved_path:
         file_values = _load_yaml(Path(resolved_path))
+        warn_unknown_keys(file_values, logger=logger)
 
     def pick(key: str, default: Any) -> Any:
         env_key = f"{ENV_PREFIX}{key.upper()}"
@@ -293,6 +386,7 @@ def load_settings(
             "normalization config section must be a mapping, got "
             f"{type(normalization_section).__name__}"
         )
+    warn_unknown_keys(normalization_section, logger=logger, section="normalization")
 
     def norm_pick(key: str, default: Any) -> Any:
         env_key = f"{ENV_PREFIX}NORMALIZATION_{key.upper()}"
@@ -326,6 +420,7 @@ def load_settings(
             "fast_path config section must be a mapping, got "
             f"{type(fast_path_section).__name__}"
         )
+    warn_unknown_keys(fast_path_section, logger=logger, section="fast_path")
 
     def fp_pick(key: str, default: Any) -> Any:
         env_key = f"{ENV_PREFIX}FAST_PATH_{key.upper()}"
@@ -366,6 +461,7 @@ def load_settings(
             "deep_path config section must be a mapping, got "
             f"{type(deep_path_section).__name__}"
         )
+    warn_unknown_keys(deep_path_section, logger=logger, section="deep_path")
 
     def dp_pick(key: str, default: Any) -> Any:
         env_key = f"{ENV_PREFIX}DEEP_PATH_{key.upper()}"
@@ -409,6 +505,7 @@ def load_settings(
             "canary config section must be a mapping, got "
             f"{type(canary_section).__name__}"
         )
+    warn_unknown_keys(canary_section, logger=logger, section="canary")
 
     def canary_pick(key: str, default: Any) -> Any:
         env_key = f"{ENV_PREFIX}CANARY_{key.upper()}"
@@ -432,6 +529,51 @@ def load_settings(
 
     # ---------------------------------------------------------------------
     # Rate limiting (v1.1 hardening) — per-client token bucket.
+    # ---------------------------------------------------------------------
+    rate_limit_section = file_values.get("rate_limit")
+    if rate_limit_section is None:
+        rate_limit_section = {}
+    if not isinstance(rate_limit_section, dict):
+        raise ValueError(
+            "rate_limit config section must be a mapping, got "
+            f"{type(rate_limit_section).__name__}"
+        )
+    warn_unknown_keys(rate_limit_section, logger=logger, section="rate_limit")
+
+    # requests_per_minute is spelled LMPI_RATE_LIMIT_RPM for brevity.
+    rate_limit_env_keys = {
+        "enabled": f"{ENV_PREFIX}RATE_LIMIT_ENABLED",
+        "requests_per_minute": f"{ENV_PREFIX}RATE_LIMIT_RPM",
+        "burst": f"{ENV_PREFIX}RATE_LIMIT_BURST",
+    }
+
+    def rl_pick(key: str, default: Any) -> Any:
+        env_key = rate_limit_env_keys[key]
+        if env.get(env_key):
+            return env[env_key]
+        if rate_limit_section.get(key) is not None:
+            return rate_limit_section[key]
+        return default
+
+    rate_limit = RateLimitSettings(
+        enabled=_parse_bool(rl_pick("enabled", DEFAULT_RATE_LIMIT_ENABLED), rate_limit_env_keys["enabled"]),
+        requests_per_minute=_parse_positive_int(
+            rl_pick("requests_per_minute", DEFAULT_RATE_LIMIT_RPM),
+            name="rate_limit_requests_per_minute",
+        ),
+        burst=_parse_positive_int(
+            rl_pick("burst", DEFAULT_RATE_LIMIT_BURST),
+            name="rate_limit_burst",
+        ),
+    )
+
+    max_body_bytes = _parse_positive_int(
+        pick("max_body_bytes", DEFAULT_MAX_BODY_BYTES),
+        name="max_body_bytes",
+    )
+
+    # ---------------------------------------------------------------------
+    # Audit / access log (Agent 10, hardening v1.1).
     # ---------------------------------------------------------------------
     rate_limit_section = file_values.get("rate_limit")
     if rate_limit_section is None:
@@ -474,6 +616,47 @@ def load_settings(
         name="max_body_bytes",
     )
 
+    # ---------------------------------------------------------------------
+    # Audit / access log (Agent 10, hardening v1.1).
+    # ---------------------------------------------------------------------
+    audit_section = file_values.get("audit")
+    if audit_section is None:
+        audit_section = {}
+    if not isinstance(audit_section, dict):
+        raise ValueError(
+            "audit config section must be a mapping, got "
+            f"{type(audit_section).__name__}"
+        )
+    warn_unknown_keys(audit_section, logger=logger, section="audit")
+
+    def audit_pick(key: str, default: Any) -> Any:
+        env_key = f"{ENV_PREFIX}AUDIT_{key.upper()}"
+        if env.get(env_key):
+            return env[env_key]
+        if audit_section.get(key) is not None:
+            return audit_section[key]
+        return default
+
+    audit = AuditSettings(
+        enabled=_parse_bool(
+            audit_pick("enabled", False), f"{ENV_PREFIX}AUDIT_ENABLED"
+        ),
+        path=_parse_audit_path(audit_pick("path", "stdout")),
+        include_text=_parse_bool(
+            audit_pick("include_text", False),
+            f"{ENV_PREFIX}AUDIT_INCLUDE_TEXT",
+        ),
+        access_log=_parse_bool(
+            audit_pick("access_log", False), f"{ENV_PREFIX}AUDIT_ACCESS_LOG"
+        ),
+    )
+    if audit.enabled and audit.path not in AUDIT_STREAM_TARGETS:
+        parent = Path(audit.path).parent
+        if parent.exists() and not parent.is_dir():
+            raise ValueError(
+                f"audit path parent is not a directory: {audit.path!r}"
+            )
+
     if not upstream_url.lower().startswith(("http://", "https://")):
         raise ValueError(
             f"upstream_url must start with http:// or https://, got {upstream_url!r}"
@@ -491,6 +674,7 @@ def load_settings(
         deep_path=deep_path,
         canary=canary,
         rate_limit=rate_limit,
+        audit=audit,
     )
     logger.debug(
         "Loaded settings: upstream=%s host=%s port=%s timeout=%s "

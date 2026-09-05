@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from ..config import CANARY_ACTIONS, CanarySettings
 from .tokens import CANARY_LENGTH, CanaryToken, ephemeral_secret, generate_canary, random_salt
@@ -131,12 +131,33 @@ class CanaryManager:
     # Response path — scanning
     # ------------------------------------------------------------------
 
-    def new_scan_state(self, token: CanaryToken) -> CanaryScanState:
-        """Create the request-scoped scanner for one proxied response."""
-        return CanaryScanState(token=token, action=self.action)
+    def new_scan_state(
+        self,
+        token: CanaryToken,
+        *,
+        request_id: str | None = None,
+        on_leak: Callable[[dict[str, Any]], None] | None = None,
+    ) -> CanaryScanState:
+        """Create the request-scoped scanner for one proxied response.
+
+        ``request_id`` / ``on_leak`` (Agent 10, audit): when ``on_leak`` is
+        given it receives the canary alert event (fingerprint only, never
+        the token value) the first time the canary is seen in a response.
+        """
+        return CanaryScanState(
+            token=token,
+            action=self.action,
+            request_id=request_id,
+            on_leak=on_leak,
+        )
 
     def scan_bytes(
-        self, body: bytes, token: CanaryToken
+        self,
+        body: bytes,
+        token: CanaryToken,
+        *,
+        request_id: str | None = None,
+        on_leak: Callable[[dict[str, Any]], None] | None = None,
     ) -> tuple[bytes, CanaryScanState]:
         """Scan a complete (non-streaming) response body.
 
@@ -145,7 +166,9 @@ class CanaryManager:
         mode the caller checks ``state.leaked`` and discards the body in
         favor of a 502 leak response.
         """
-        state = self.new_scan_state(token)
+        state = self.new_scan_state(
+            token, request_id=request_id, on_leak=on_leak
+        )
         emitted = state.process(body)
         return emitted + state.flush(), state
 
@@ -165,6 +188,8 @@ class CanaryScanState:
     action: str = "redact"
     leaked: bool = False
     occurrences: int = 0
+    request_id: str | None = None
+    on_leak: Callable[[dict[str, Any]], None] | None = None
     _pending: bytes = field(default=b"", repr=False)
     _terminal: bool = field(default=False, repr=False)
     _needle: bytes = field(default=b"", repr=False)
@@ -233,6 +258,13 @@ class CanaryScanState:
             "fingerprint": self.token.fingerprint,
             "occurrences": self.occurrences,
         }
+        # Agent 10 (audit): the fingerprint is a keyed hash — the token
+        # value itself is never included in any log or audit event.
+        if self.on_leak is not None:
+            leak_event = dict(event)
+            if self.request_id is not None:
+                leak_event["request_id"] = self.request_id
+            self.on_leak(leak_event)
         logger.warning(
             "detection event: %s", json.dumps(event, ensure_ascii=False, sort_keys=True)
         )

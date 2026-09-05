@@ -11,14 +11,17 @@ from __future__ import annotations
 import json
 import logging
 import math
+import time
+import uuid
 from typing import Any, AsyncIterator
 
 import httpx
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from .audit import AuditSink
 from .canary import CanaryManager, CanaryScanState, CanaryToken
-from .detection.pipeline import DetectionPipeline, PipelineResult
+from .detection.pipeline import DetectionPipeline, PipelineResult, extract_user_text
 from .rate_limit import (
     BODY_TOO_LARGE_STATUS_CODE,
     HEADER_RATE_LIMIT,
@@ -222,6 +225,51 @@ def leak_detected_response() -> JSONResponse:
     )
 
 
+def new_request_id() -> str:
+    """Short request id for audit correlation (``req_<8 hex>``)."""
+    return f"req_{uuid.uuid4().hex[:8]}"
+
+
+def scrub_text(text: str, canary_token: CanaryToken | None) -> str:
+    """Remove any canary token value from text before it is audited.
+
+    Defense in depth: prompt text extraction only reads *user* messages, so
+    canary sentences (injected into the system message afterwards) should
+    never appear here — but an audit log must never contain the token value,
+    so occurrences are replaced with ``[CANARY-REDACTED]`` regardless.
+    """
+    if canary_token is None:
+        return text
+    return text.replace(canary_token.value, "[CANARY-REDACTED]")
+
+
+def audit_detection_event(
+    audit: AuditSink | None,
+    audit_settings: Any,
+    *,
+    request_id: str,
+    result: PipelineResult,
+    latency_ms: float,
+    text: str,
+    canary_token: CanaryToken | None,
+) -> None:
+    """Record the pipeline decision as one audit event (canary-safe)."""
+    if audit is None:
+        return
+    event: dict[str, Any] = {
+        "event": "detection",
+        "request_id": request_id,
+        "stage": result.stage,
+        "action": result.action,
+        "reason": result.reason,
+        "scores": result.scores,
+        "latency_ms": round(latency_ms, 2),
+    }
+    if audit_settings.include_text and text:
+        event["text"] = scrub_text(text, canary_token)
+    audit.record(event)
+
+
 def rate_limit_headers(decision: RateLimitDecision | None) -> dict[str, str]:
     """X-RateLimit-* headers to attach when rate limiting is enabled."""
     if decision is None:
@@ -307,11 +355,23 @@ async def forward_chat_completions(request: Request) -> Response:
     payload dict, so the canary lands in exactly the system prompt the
     upstream LLM will see. The response (body or stream) is then scanned for
     that same per-request token.
+
+    Agent 10 (audit): the pipeline decision and canary leak events are
+    written to the JSONL audit sink (when enabled) under a per-request id.
     """
     client: httpx.AsyncClient = request.app.state.client
     pipeline: DetectionPipeline = request.app.state.pipeline
     canary: CanaryManager | None = getattr(request.app.state, "canary", None)
     settings = request.app.state.settings
+    audit: AuditSink | None = getattr(request.app.state, "audit", None)
+    audit_settings = getattr(request.app.state, "audit_settings", None)
+    request_id = new_request_id()
+    started = time.perf_counter()
+
+    def on_pipeline_event(event: dict[str, Any]) -> None:
+        if audit is None:
+            return
+        audit.record({"event": "stage", **event})
 
     # --- Admission control: rate limit + body-size cap (v1.1 hardening) ---
     limiter = getattr(request.app.state, "rate_limiter", None)
@@ -339,7 +399,25 @@ async def forward_chat_completions(request: Request) -> Response:
     canary_token: CanaryToken | None = None
 
     if payload is not None:
-        result: PipelineResult = await pipeline.process_request(payload)
+        try:
+            result: PipelineResult = await pipeline.process_request(
+                payload, request_id=request_id, on_event=on_pipeline_event
+            )
+        except TypeError:
+            # Pipelines that predate the audit hooks (e.g. test doubles)
+            # only accept the payload — detection events are then simply
+            # not emitted.
+            result = await pipeline.process_request(payload)
+        if audit is not None:
+            audit_detection_event(
+                audit,
+                audit_settings,
+                request_id=request_id,
+                result=result,
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+                text=extract_user_text(payload),
+                canary_token=None,  # pipeline events never contain canary text
+            )
         if result.action == "block":
             logger.info("Request blocked by detection pipeline: %s", result.reason)
             return blocked_response(result.reason, extra_headers)
@@ -348,6 +426,11 @@ async def forward_chat_completions(request: Request) -> Response:
             final_payload, canary_token = canary.inject(final_payload)
         if result.payload is not None or canary_token is not None:
             body = json.dumps(final_payload, ensure_ascii=False).encode("utf-8")
+
+    def on_leak(event: dict[str, Any]) -> None:
+        # Canary alert: fingerprint only — the token value is never logged.
+        if audit is not None:
+            audit.record({"event": "canary_leak", **event})
 
     upstream_path = request.url.path
     if request.url.query:
@@ -375,7 +458,9 @@ async def forward_chat_completions(request: Request) -> Response:
                     },
                 )
             scan = (
-                canary.new_scan_state(canary_token)
+                canary.new_scan_state(
+                    canary_token, request_id=request_id, on_leak=on_leak
+                )
                 if canary is not None and canary_token is not None
                 else None
             )
@@ -398,7 +483,9 @@ async def forward_chat_completions(request: Request) -> Response:
 
     content = upstream_response.content
     if canary is not None and canary_token is not None:
-        content, scan = canary.scan_bytes(content, canary_token)
+        content, scan = canary.scan_bytes(
+            content, canary_token, request_id=request_id, on_leak=on_leak
+        )
         if scan.action == "block" and scan.leaked:
             return leak_detected_response()
 
