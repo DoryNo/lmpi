@@ -25,6 +25,7 @@ from .detection.pipeline import DetectionPipeline
 from .deep_path import DeepPathDetector
 from .deep_path.backend import OnnxRuntimeBackend
 from .proxy import check_upstream, forward_chat_completions
+from .rate_limit import build_rate_limiter
 
 logger = logging.getLogger("lmpi")
 
@@ -126,6 +127,8 @@ def create_app(
     app.state.transport = transport
     app.state.pipeline = build_pipeline(app.state.settings)
     app.state.canary = build_canary_manager(app.state.settings)
+    # ``None`` when rate limiting is disabled — the proxy skips admission then.
+    app.state.rate_limiter = build_rate_limiter(app.state.settings)
 
     @app.post("/v1/chat/completions")
     async def chat_completions(request: Request) -> Response:
