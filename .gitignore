@@ -25,3 +25,7 @@ models/
 # Benchmark runtime caches: eval-set datasets downloaded at run time
 # (manifest is committed; the dataset texts are NOT, per Agent 7 safety rule)
 benchmarks/.cache/
+
+# Tuning scratch space: score caches, sweeps, smoke runs (regenerable via
+# benchmarks/tune.py; the committed artifacts live in benchmarks/results/)
+benchmarks/analysis/

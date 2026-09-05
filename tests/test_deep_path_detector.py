@@ -29,22 +29,24 @@ class TestDecisionMapping:
         ("score", "expected"),
         [
             (1.0, "block"),
-            (0.75, "block"),  # exactly at threshold → block
-            (0.7499, "warn"),
-            (0.5, "warn"),  # exactly at warn → warn
-            (0.4999, "allow"),
+            (DEFAULT_BLOCK_THRESHOLD, "block"),  # exactly at threshold → block
+            (DEFAULT_BLOCK_THRESHOLD - 0.0001, "warn"),
+            (DEFAULT_WARN_THRESHOLD, "warn"),  # exactly at warn → warn
+            (DEFAULT_WARN_THRESHOLD - 0.0001, "allow"),
             (0.0, "allow"),
         ],
     )
     def test_default_thresholds(self, score: float, expected: str) -> None:
-        assert decide_action(score, 0.75, 0.5) == expected
+        assert decide_action(
+            score, DEFAULT_BLOCK_THRESHOLD, DEFAULT_WARN_THRESHOLD
+        ) == expected
 
     def test_detector_block_boundary(self) -> None:
-        detector, _ = make_detector(0.75)
+        detector, _ = make_detector(DEFAULT_BLOCK_THRESHOLD)
         assert detector.detect("text").action == "block"
 
     def test_detector_warn_boundary(self) -> None:
-        detector, _ = make_detector(0.7499)
+        detector, _ = make_detector(DEFAULT_BLOCK_THRESHOLD - 0.0001)
         assert detector.detect("text").action == "warn"
 
     def test_detector_allow_below_warn(self) -> None:
@@ -162,7 +164,7 @@ class TestLatencyAndLogging:
         reason = detector.detect("text").reason
         assert "Deep path score=0.80" in reason
         assert "model=stub" in reason
-        assert "block=0.75" in reason
+        assert "block=0.65" in reason
 
     def test_result_carries_backend_metadata(self) -> None:
         class _Backend(StubBackend):

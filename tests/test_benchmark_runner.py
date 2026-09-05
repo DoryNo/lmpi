@@ -29,7 +29,7 @@ from src.detection.pipeline import DetectionPipeline
 
 FAST_BLOCK = 0.75
 FAST_WARN = 0.4
-DEEP_BLOCK = 0.75
+DEEP_BLOCK = 0.65
 DEEP_WARN = 0.5
 
 
@@ -159,7 +159,7 @@ def test_run_item_allows_benign_with_deep_in_pipeline() -> None:
 
 
 def test_run_item_warns_on_deep_warn() -> None:
-    bundle = _bundle(injection=0.55, benign=0.45)  # deep says warn (0.5..0.75)
+    bundle = _bundle(injection=0.55, benign=0.45)  # deep says warn (0.5..0.65)
     record = asyncio.run(run_item(bundle, "c2", "clean", BENIGN_TEXT))
     assert record.decision == "warn" and record.warned and not record.blocked
     assert record.deep_action == "warn"
